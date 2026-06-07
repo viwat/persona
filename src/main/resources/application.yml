@@ -1,9 +1,27 @@
 spring:
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE}
+    active: ${SPRING_PROFILES_ACTIVE:local}
   application:
     name: persona
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh, bus-refresh, health, prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+
+---
+# Cloud Config + Vault — only in deployed (non-local) environments
+spring:
   config:
+    activate:
+      on-profile: "!local"
     import:
       - "optional:vault://"
       - "optional:configserver:"
@@ -28,14 +46,3 @@ spring:
         application-name: msa-general
         default-context: msa-general
         profiles: ${VAULT_NS}
-management:
-  endpoints:
-    web:
-      exposure:
-        include: refresh, bus-refresh, health, prometheus
-  metrics:
-    distribution:
-      percentiles-histogram:
-        http:
-          server:
-            requests: true

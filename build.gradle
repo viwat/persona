@@ -12,7 +12,7 @@ version = project.findProperty("version") ?: "1.0.0"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -28,7 +28,8 @@ spotless {
 
 allprojects {
     repositories {
-
+        mavenCentral()
+        mavenLocal()
     }
 }
 
@@ -75,7 +76,7 @@ dependencies {
     implementation 'commons-codec:commons-codec'
 
     // ── AOP + Circuit breaker ─────────────────────────────────────────────
-    implementation 'org.springframework.boot:spring-boot-starter-aop:4.0.0-M2'
+    implementation 'org.springframework.boot:spring-boot-starter-aspectj'
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
 
     // ── OpenAPI / Swagger ─────────────────────────────────────────────────
@@ -85,8 +86,7 @@ dependencies {
     implementation 'tools.jackson.core:jackson-core:3.1.1'
 
     // ── Security / Token ─────────────────────────────────────────────────
-    implementation 'kh.com.wingbank.cipher:wing-token:4.0.0'
-    implementation 'kh.com.wingbank.cipher:wing-flag:4.0.0'
+    // wing-token / wing-flag replaced by local stubs in src/main/java/kh/com/wingbank/cipher/
     implementation 'com.auth0:java-jwt:4.5.1'
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
     implementation 'io.jsonwebtoken:jjwt-impl:0.13.0'

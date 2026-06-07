@@ -1,8 +1,8 @@
 package com.example.persona.exception;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.MismatchedInputException;
 import com.example.persona.enums.ErrorCode;
 import com.example.persona.utils.TraceIdUtils;
 import io.micrometer.tracing.Tracer;
@@ -146,7 +146,7 @@ public class GlobalExceptionHandler {
 
         // Get field name from JSON path
         String fieldName = ex.getPath().stream()
-                .map(JsonMappingException.Reference::getFieldName)
+                .map(JacksonException.Reference::getPropertyName)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining("."));
 
@@ -174,7 +174,7 @@ public class GlobalExceptionHandler {
         switch (cause) {
             case InvalidFormatException ife -> {
                 String fieldName = ife.getPath().stream()
-                        .map(JsonMappingException.Reference::getFieldName)
+                        .map(JacksonException.Reference::getPropertyName)
                         .filter(Objects::nonNull)
                         .collect(Collectors.joining("."));
 
@@ -190,7 +190,7 @@ public class GlobalExceptionHandler {
             case JsonParseException ignored -> errors.put("request", "Malformed JSON syntax");
             case MismatchedInputException mie -> {
                 String fieldName = mie.getPath().stream()
-                        .map(JsonMappingException.Reference::getFieldName)
+                        .map(JacksonException.Reference::getPropertyName)
                         .filter(Objects::nonNull)
                         .collect(Collectors.joining("."));
 
