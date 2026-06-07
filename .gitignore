@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+
+# Secrets / local overrides
+application-local-override.yml
+*.env
+secrets.properties
+
+# Logs
+*.log
+logs/

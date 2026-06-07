@@ -1,0 +1,98 @@
+package com.example.persona.profile.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CardAppProfileResponse {
+    @JsonProperty("card_no")
+    private String cardNo;
+
+    @JsonProperty("account_no")
+    private String accountNo;
+
+    @JsonProperty("tracking_no")
+    private String trackingNo;
+
+    @JsonProperty("card_type")
+    private String cardType;
+
+    @JsonProperty("card_brand")
+    private String cardBrand;
+
+    @JsonProperty("card_name")
+    private String cardName;
+
+    @JsonProperty("card_last_four")
+    private String cardLastFour;
+
+    @JsonProperty("card_status")
+    private String cardStatus;
+
+    @JsonProperty("expiry_date")
+    private LocalDate expiryDate;
+
+    @JsonProperty("card_holder_name")
+    private String cardHolderName;
+
+    @JsonProperty("css_number")
+    private String cssNumber;
+
+    @JsonProperty("credit_limit")
+    private BigDecimal creditLimit;
+
+    @JsonProperty("available_credit")
+    private BigDecimal availableCredit;
+
+    @JsonProperty("transaction_max_limit")
+    private BigDecimal transactionMaxLimit;
+
+    @JsonProperty("daily_limit")
+    private BigDecimal dailyLimit;
+
+    @JsonProperty("monthly_limit")
+    private BigDecimal monthlyLimit;
+
+    @JsonProperty("display_order")
+    private Integer displayOrder;
+
+    @JsonProperty("is_pinned")
+    private Boolean isPinned;
+
+    @JsonProperty("is_hidden")
+    private Boolean isHidden;
+
+    @JsonProperty("stop_transaction_notification")
+    private Boolean stopTransactionNotification;
+
+    @JsonProperty("is_default_payment_card")
+    private Boolean isDefaultPaymentCard;
+
+    @JsonProperty("allow_transaction")
+    private Boolean allowTransaction;
+
+    @JsonProperty("allow_online_transaction")
+    private Boolean allowOnlineTransaction;
+
+    @JsonProperty("allow_contactless_transaction")
+    private Boolean allowContactlessTransaction;
+
+    @JsonProperty("allow_international_transaction")
+    private Boolean allowInternationalTransaction;
+
+    @JsonProperty("card_icon")
+    private String cardIcon;
+
+    @JsonProperty("card_color")
+    private String cardColor;
+}

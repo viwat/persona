@@ -1,0 +1,9 @@
+ ____                                    
+|  _ \ ___ _ __ ___  ___  _ __   __ _  
+| |_) / _ \ '__/ __|/ _ \| '_ \ / _` | 
+|  __/  __/ |  \__ \ (_) | | | | (_| | 
+|_|   \___|_|  |___/\___/|_| |_|\__,_| 
+                                       
+:: Spring Boot ::    v${spring-boot.version}
+:: App Version ::    v${application.version}
+:: Environment ::    ${spring.profiles.active}

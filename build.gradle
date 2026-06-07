@@ -1,0 +1,157 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'org.springframework.boot' version '4.0.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id "com.diffplug.spotless" version "8.2.1"
+    id "jacoco"
+}
+
+group = 'com.wingbank'
+version = project.findProperty("version") ?: "1.0.0"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+spotless {
+    java {
+        palantirJavaFormat()
+        importOrder()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+allprojects {
+    repositories {
+        maven {
+            def env = (System.getenv("DEPLOY_ENV") ?: "dev").toLowerCase()
+            def projectId = (env in ["dev", "qa"]) ? "573" : "320"
+
+            url = "https://git.wingbank.com.kh/api/v4/projects/${projectId}/dependency_proxy/packages/maven"
+            credentials(PasswordCredentials) {
+                username = System.getenv("SHARED_DEPLOY_USER") ?: project.findProperty("gitlabUser")
+                password = System.getenv("SHARED_DEPLOY_PASSWORD") ?: project.findProperty("gitlabToken")
+            }
+            authentication {
+                create("BASIC", BasicAuthentication)
+            }
+        }
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.5"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2025.1.1"
+    }
+}
+
+dependencies {
+
+    // ── Spring Boot core ──────────────────────────────────────────────────
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    implementation  'org.springframework.boot:spring-boot-starter'
+    implementation  'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation  'org.springframework.boot:spring-boot-configuration-processor'
+
+    // ── Spring Cloud (Config + Vault) ─────────────────────────────────────
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    implementation 'org.springframework.cloud:spring-cloud-starter-vault-config'
+
+    // ── Observability ─────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry'
+    runtimeOnly    'io.micrometer:micrometer-registry-prometheus'
+
+    // ── Cache + Redis ─────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.apache.commons:commons-pool2'
+
+    // ── Data ──────────────────────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.postgresql:postgresql'
+    implementation 'com.oracle.database.jdbc:ojdbc17'
+    implementation 'com.oracle.database.ha:ons'
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-73:3.15.1'
+
+    // ── HTTP client ───────────────────────────────────────────────────────
+    implementation 'org.apache.httpcomponents.client5:httpclient5'
+    implementation 'org.apache.commons:commons-text:1.15.0'
+    implementation 'commons-codec:commons-codec'
+
+    // ── AOP + Circuit breaker ─────────────────────────────────────────────
+    implementation 'org.springframework.boot:spring-boot-starter-aop:4.0.0-M2'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+
+    // ── OpenAPI / Swagger ─────────────────────────────────────────────────
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
+
+    // ── Jackson 3 ─────────────────────────────────────────────────────────
+    implementation 'tools.jackson.core:jackson-core:3.1.1'
+
+    // ── Security / Token ─────────────────────────────────────────────────
+    implementation 'kh.com.wingbank.cipher:wing-token:4.0.0'
+    implementation 'kh.com.wingbank.cipher:wing-flag:4.0.0'
+    implementation 'com.auth0:java-jwt:4.5.1'
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.13.0'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.13.0'
+
+    // ── Feature flag + Search ─────────────────────────────────────────────
+    implementation 'dev.openfeature:sdk:1.19.2'
+    implementation 'com.meilisearch.sdk:meilisearch-java:0.18.0'
+
+    // ── Lombok ────────────────────────────────────────────────────────────
+    compileOnly         'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // ── MapStruct ─────────────────────────────────────────────────────────
+    implementation      'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ── Test ──────────────────────────────────────────────────────────────
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core:5.21.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.21.0'
+    testImplementation 'org.assertj:assertj-core:3.27.7'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += [
+            '-parameters',                              // required for Spring parameter name discovery
+            '-Amapstruct.defaultComponentModel=spring',
+            '-Amapstruct.unmappedTargetPolicy=WARN'
+    ]
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', true
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.14"
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        xml.outputLocation = layout.buildDirectory.file("jacocoreports/test/jacocoTestReport.xml").get().asFile
+
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("jacocoreports/html").get().asFile
+    }
+}

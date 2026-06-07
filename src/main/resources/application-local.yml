@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: persona
+
+  # Disable remote config sources for local development
+  cloud:
+    vault:
+      enabled: false
+    config:
+      enabled: false
+
+  datasource-pg:
+    jdbc-url: jdbc:postgresql://localhost:5432/persona
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: public
+        dialect_resolvers: org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver
+        hbm2ddl:
+          auto: update
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 3000
+      connect-timeout: 5000
+      ssl:
+        enabled: false
+      lettuce:
+        pool:
+          max-idle: 2
+          min-idle: 1
+          max-active: 5
+          max-wait: 1000
+          time-between-eviction-runs: 60000
+        shutdown-timeout: 100ms
+
+persona:
+  migration:
+    stale-blocking-job-minutes: 5
+    async:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 50
+  application:
+    async:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 50
+
+system:
+  env: "local"
+  redis-ttl:
+    setting-ms: 172800
+    favorite-ms: 172800
+    schedule-ms: 172800
+  cdp:
+    base-url: "http://localhost"
+    account-info-url: "/v3/account/detail"
+    timeout: 5
+
+# ── Pinless feature configuration ────────────────────────────────────────────
+pinless:
+  system:
+    caps:
+      USD: 1000.00
+      KHR: 4000000.00
+    min-thresholds:
+      USD: 1.00
+      KHR: 4000.00
+
+  defaults:
+    threshold-amount:
+      USD: 50.00
+      KHR: 200000.00
+    threshold-enabled: true
+
+  exchange:
+    rates:
+      USD:
+        KHR: 4000.00
+      KHR:
+        USD: 0.00025
+
+  cache:
+    ttl-minutes: 5
+    key-prefix: "local"
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      pinlessRedis:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
