@@ -131,7 +131,7 @@ public class LocationController {
     @PostMapping("/near-by")
     @Operation(
             summary = "Search locations by type and coordinates",
-            description = "Retrieve locations filtered by type and sorted by distance fromEntity given coordinates")
+            description = "Retrieve locations filtered by type and sorted by distance from given coordinates")
     @ApiResponse(responseCode = "200", description = "Successfully retrieved locations")
     public ResponseEntity<@NonNull PaginatedResult<LocationResponse>> searchLocations(
             @RequestBody LocationNearByRequest request, Pageable pageable) {

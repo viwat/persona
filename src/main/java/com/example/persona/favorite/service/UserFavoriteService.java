@@ -78,7 +78,7 @@ public class UserFavoriteService {
         // Write to history
         userFavoriteHistoryRepository.save(userFavoriteHistoryMapper.fromUserFavorite(existingFavorite));
         // Create new favorite with updated information
-        // Maintain the same display order fromEntity the existing favorite
+        // Maintain the same display order from the existing favorite
         request.setDisplayOrder(existingFavorite.getDisplayOrder());
         existingFavorite.setStatus(StatusType.ACTIVE);
         // Create new record

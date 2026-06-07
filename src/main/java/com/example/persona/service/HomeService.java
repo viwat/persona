@@ -53,14 +53,14 @@ public class HomeService {
         }
 
         try {
-            // Try to get fromEntity cache first
+            // Try to get from cache first
             List<String> cachedData = template.opsForList().range(cacheKey, 0, -1);
             if (!cachedData.isEmpty()) {
                 log.debug("Cache hit for key: {}", cacheKey);
                 return cachedData.stream().map(this::deserializeResponse).collect(Collectors.toList());
             }
 
-            // Cache miss - fetch fromEntity database
+            // Cache miss - fetch from database
             log.debug("Cache miss for key: {}", cacheKey);
             List<CategoryProductsResponse> response =
                     fetchFromDatabase(request.getCustomerSegment(), request.getCustomerSubSegment());

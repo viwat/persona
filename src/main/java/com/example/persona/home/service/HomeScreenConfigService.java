@@ -120,7 +120,7 @@ public class HomeScreenConfigService {
             serviceOrder = List.of("account", "topup", "paybills", "transfer", "saveforgoal", "codetowing");
         }
 
-        // Build service config fromEntity theme icons or default
+        // Build service config from theme icons or default
         List<HomeScreenConfigResponse.ServiceConfigResponse> services = new ArrayList<>();
         int order = 0;
         for (String serviceCode : serviceOrder) {
@@ -150,7 +150,7 @@ public class HomeScreenConfigService {
     }
 
     private String getServiceIconUrl(String code) {
-        // In a real implementation, this would fetch fromEntity theme icons or asset
+        // In a real implementation, this would fetch from theme icons or asset
         // service
         return "/icons/services/" + code + ".png";
     }

@@ -75,7 +75,7 @@ public class UserScheduleResponse implements Serializable {
     private String deviceId;
 
     /**
-     * Maps fromEntity entity to DTO
+     * Maps from entity to DTO
      */
     public static UserScheduleResponse fromEntity(UserSchedule entity) {
         ObjectMapperUtils mapper = new ObjectMapperUtils();

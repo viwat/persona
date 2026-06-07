@@ -125,7 +125,7 @@ public class AccountAppProfile extends BaseModel {
     private String checksumSha256;
 
     /**
-     * Generates a SHA-256 hash fromEntity customer_no and account_no. This hash is
+     * Generates a SHA-256 hash from customer_no and account_no. This hash is
      * used in URLs instead of exposing the actual account number.
      */
     public String generateAccountHash() {

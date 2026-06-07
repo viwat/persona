@@ -186,7 +186,6 @@ public class LocationSearchService {
             try {
                 Index index = meilisearchClient.index(INDEX_NAME);
                 index.updateDocuments(objectMapper.writeValueAsString(locationSearch), "_id");
-                // TODO: to remove filterable
                 index.updateFilterableAttributesSettings(FILTERS);
                 log.info("Successfully updated location {} in Meilisearch", locationSearch.getLocationId());
             } catch (MeilisearchException e) {

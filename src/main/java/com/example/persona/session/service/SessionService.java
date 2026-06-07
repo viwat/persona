@@ -27,8 +27,8 @@ public class SessionService {
 
     /**
      * Records or updates a user session on login. Implements cache-aside pattern
-     * with SHA key: 1. Generate SHA fromEntity session attributes 2. Try to read
-     * fromEntity cache using SHA key 3. If cache miss, read fromEntity DB by
+     * with SHA key: 1. Generate SHA from session attributes 2. Try to read
+     * from cache using SHA key 3. If cache miss, read from DB by
      * customerKey 4. Compare SHA values to detect changes 5. If changed, update DB
      * and update cache with new SHA key
      *
@@ -47,7 +47,7 @@ public class SessionService {
         UserSession newSession = buildSessionFromRequest(request, ipAddress);
         String newSha = newSession.generateSessionSha();
 
-        // Cache-Aside: Try to read fromEntity cache using SHA key
+        // Cache-Aside: Try to read from cache using SHA key
         Optional<UserSession> cachedSession = userSessionCache.getBySha(newSha);
 
         UserSession existingSession;
@@ -83,7 +83,7 @@ public class SessionService {
                     oldSha,
                     newSha);
 
-            // Evict old SHA fromEntity cache if exists
+            // Evict old SHA from cache if exists
             if (oldSha != null) {
                 userSessionCache.evict(oldSha);
             }

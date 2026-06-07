@@ -28,11 +28,8 @@ public class ConfigValueUtils {
     }
 
     private void setIfPresent(java.util.function.Consumer<String> setter, Map<String, String> attributes, String key) {
-        try {
-            if (attributes.containsKey(key)) {
-                setter.accept(attributes.get(key));
-            }
-        } catch (Exception ignored) {
+        if (attributes.containsKey(key)) {
+            setter.accept(attributes.get(key));
         }
     }
 }

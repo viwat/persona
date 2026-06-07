@@ -36,10 +36,10 @@ public class WidgetService {
     public List<WidgetResponse> findActiveWidgets(CustomerBaseRequest request) {
         String cacheKey = generateCacheKey(request.getCustomerSegment(), request.getCustomerSubSegment());
 
-        // Try to get fromEntity cache first
+        // Try to get from cache first
         return widgetCache.computeIfAbsent(cacheKey, key -> {
             log.debug(
-                    "Cache miss for segment: {} and subSegment: {}. Fetching fromEntity database",
+                    "Cache miss for segment: {} and subSegment: {}. Fetching from database",
                     request.getCustomerSegment(),
                     request.getCustomerSubSegment());
             return widgetRepository

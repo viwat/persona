@@ -109,7 +109,7 @@ public class CardAppProfileService {
             newVersion.setCustomerAppId(request.getCustomerNo());
         }
 
-        // Set optional fields fromEntity request
+        // Set optional fields from request
         updateCardProfileFields(newVersion, request);
         handleDefaultPaymentCardUpdate(request, newVersion);
 
@@ -212,7 +212,7 @@ public class CardAppProfileService {
                 .orElseThrow(() -> new BusinessException(
                         String.format("Card app profile not found for card: %s", request.getCardNo())));
 
-        // Create new version (copies all fields fromEntity old)
+        // Create new version (copies all fields from old)
         CardAppProfile newVersion = new CardAppProfile();
         versioningService.createNewVersion(oldVersion, newVersion, versionKey);
 

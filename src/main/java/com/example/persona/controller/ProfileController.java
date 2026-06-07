@@ -190,7 +190,7 @@ public class ProfileController {
 
     @ZeroTrust
     @PutMapping("/account/{accountHash}/hide")
-    @Operation(summary = "Hide account", description = "Hides an account fromEntity the account list")
+    @Operation(summary = "Hide account", description = "Hides an account from the account list")
     public ResponseEntity<ApiResponse<AccountAppProfileResponse>> hideAccount(@PathVariable String accountHash) {
         AccountAppProfileResponse profile = accountAppProfileService.hideAccountByHash(accountHash);
         return ResponseEntity.ok(ApiResponse.success(profile));
@@ -327,7 +327,7 @@ public class ProfileController {
 
     @ZeroTrust
     @PutMapping("/card/hide")
-    @Operation(summary = "Hide card", description = "Hides a card fromEntity the card list")
+    @Operation(summary = "Hide card", description = "Hides a card from the card list")
     public ResponseEntity<ApiResponse<CardAppProfileResponse>> hideCard(@Valid @RequestBody CardBaseRequest request) {
         CardAppProfileResponse profile =
                 cardAppProfileService.hideCard(request.getCustomerNo(), request.getAccountNo(), request.getCardNo());

@@ -99,7 +99,7 @@ public class PersonaWidgetHistory {
         DELETE
     }
 
-    // Constructor to create history fromEntity PersonaWidget
+    // Constructor to create history from PersonaWidget
     public PersonaWidgetHistory(PersonaWidget widget, ActionType action, String remarks) {
         this.widgetId = widget.getWidgetId();
         this.customerNo = widget.getCustomerNo();

@@ -120,7 +120,7 @@ public class CustomerAppProfileService {
         CustomerAppProfile oldVersion = findActiveCustomerAppProfile(request).orElse(null);
         String versionKey = oldVersion != null ? oldVersion.getVersionKey() : resolveCustomerAppVersionKey(request);
 
-        // Create new version (copies all fields fromEntity old if exists)
+        // Create new version (copies all fields from old if exists)
         CustomerAppProfile newVersion = new CustomerAppProfile();
         versioningService.createNewVersion(oldVersion, newVersion, versionKey);
 
@@ -188,7 +188,7 @@ public class CustomerAppProfileService {
         CustomerAppProfile newVersion = new CustomerAppProfile();
         versioningService.createNewVersion(null, newVersion, versionKey);
 
-        // Set all fields fromEntity request (for create, we set all provided fields)
+        // Set all fields from request (for create, we set all provided fields)
         updateCustomerAppProfileFields(newVersion, request);
 
         CustomerAppProfile savedProfile = customerAppProfileRepository.save(newVersion);
@@ -208,7 +208,7 @@ public class CustomerAppProfileService {
 
         String versionKey = oldVersion.getVersionKey();
 
-        // Create new version (copies all fields fromEntity old)
+        // Create new version (copies all fields from old)
         CustomerAppProfile newVersion = new CustomerAppProfile();
         versioningService.createNewVersion(oldVersion, newVersion, versionKey);
 

@@ -65,7 +65,7 @@ public class LocaleInterceptor implements HandlerInterceptor {
             userContext.setSessionId(sessionId);
         }
 
-        // Extract and set all UserContext fields fromEntity headers
+        // Extract and set all UserContext fields from headers
         String platform = request.getHeader(PLATFORM_HEADER);
         if (platform != null) {
             userContext.setOsPlatform(platform);
@@ -127,7 +127,7 @@ public class LocaleInterceptor implements HandlerInterceptor {
             userContext.setDeviceId(deviceId);
         }
 
-        // Extract IP address fromEntity request
+        // Extract IP address from request
         String ipAddress = getClientIpAddress(request);
         if (ipAddress != null) {
             userContext.setIpAddress(ipAddress);

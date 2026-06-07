@@ -133,9 +133,9 @@ public class TranslationService {
 
         StringRedisTemplate template = redisTemplate.getIfAvailable();
 
-        // If Redis is not available, fetch directly fromEntity database
+        // If Redis is not available, fetch directly from database
         if (template == null) {
-            log.debug("Redis not available, fetching translations fromEntity database");
+            log.debug("Redis not available, fetching translations from database");
             return fetchTranslationsFromDatabase(appCode, language);
         }
         try {
@@ -145,7 +145,7 @@ public class TranslationService {
                 try {
                     List<TranslationResponse> cachedTranslations =
                             objectMapper.readValue(cachedData, new TypeReference<>() {});
-                    log.debug("Successfully retrieved {} translations fromEntity cache", cachedTranslations.size());
+                    log.debug("Successfully retrieved {} translations from cache", cachedTranslations.size());
                     return cachedTranslations;
                 } catch (JacksonException e) {
                     log.error("Error deserializing cached translations. Error: {}", e.getMessage(), e);
@@ -153,7 +153,7 @@ public class TranslationService {
                     return fetchTranslationsFromDatabase(appCode, language);
                 }
             }
-            // Cache miss - fetch fromEntity database and cache the result
+            // Cache miss - fetch from database and cache the result
             List<TranslationResponse> translations = fetchTranslationsFromDatabase(appCode, language);
             cacheTranslations(cacheKey, translations);
             return translations;
@@ -195,7 +195,7 @@ public class TranslationService {
             settingUtils.updateGlobalSetting(TRANSLATION_KEY);
             log.debug("Translation deleted successfully");
 
-            String cacheKey = redisKeyUtils.getTranslationsKey(id + ""); // TODO: to change
+            String cacheKey = redisKeyUtils.getTranslationsKey(String.valueOf(id));
             redisTemplate.ifAvailable(t -> {
                 try {
                     t.delete(cacheKey);

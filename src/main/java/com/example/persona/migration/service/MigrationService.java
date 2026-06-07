@@ -143,7 +143,7 @@ public class MigrationService {
 
         CustomerMigrationStage saved = customerStageRepository.save(customerStage);
         log.info(
-                "Updated stage {} fromEntity {} to {} for customer: {}",
+                "Updated stage {} from {} to {} for customer: {}",
                 request.getStageCode(),
                 oldStatus,
                 request.getStageStatus(),

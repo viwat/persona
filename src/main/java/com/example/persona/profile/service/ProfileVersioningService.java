@@ -16,8 +16,8 @@ import org.springframework.stereotype.Component;
 public class ProfileVersioningService {
 
     /**
-     * Creates a new version of AccountAppProfile fromEntity the old version. Copies
-     * all fields fromEntity old to new, then updates only the changed fields.
+     * Creates a new version of AccountAppProfile from the old version. Copies
+     * all fields from old to new, then updates only the changed fields.
      */
     public void createNewVersion(AccountAppProfile oldVersion, AccountAppProfile newVersion, String versionKey) {
         if (oldVersion == null) {
@@ -37,7 +37,7 @@ public class ProfileVersioningService {
             return;
         }
 
-        // Copy all fields fromEntity old version
+        // Copy all fields from old version
         copyAccountAppProfileFields(oldVersion, newVersion);
 
         // Set versioning fields
@@ -58,7 +58,7 @@ public class ProfileVersioningService {
     }
 
     /**
-     * Creates a new version of CardAppProfile fromEntity the old version.
+     * Creates a new version of CardAppProfile from the old version.
      */
     public void createNewVersion(CardAppProfile oldVersion, CardAppProfile newVersion, String versionKey) {
         if (oldVersion == null) {
@@ -91,7 +91,7 @@ public class ProfileVersioningService {
     }
 
     /**
-     * Creates a new version of CustomerAppProfile fromEntity the old version.
+     * Creates a new version of CustomerAppProfile from the old version.
      */
     public void createNewVersion(CustomerAppProfile oldVersion, CustomerAppProfile newVersion, String versionKey) {
         if (oldVersion == null) {
@@ -124,7 +124,7 @@ public class ProfileVersioningService {
     }
 
     /**
-     * Copies all fields fromEntity source to target AccountAppProfile.
+     * Copies all fields from source to target AccountAppProfile.
      */
     private void copyAccountAppProfileFields(AccountAppProfile source, AccountAppProfile target) {
         target.setCustomerKey(source.getCustomerKey());
@@ -153,7 +153,7 @@ public class ProfileVersioningService {
     }
 
     /**
-     * Copies all fields fromEntity source to target CardAppProfile.
+     * Copies all fields from source to target CardAppProfile.
      */
     private void copyCardAppProfileFields(CardAppProfile source, CardAppProfile target) {
         target.setTrackingNumber(source.getTrackingNumber());
@@ -187,7 +187,7 @@ public class ProfileVersioningService {
     }
 
     /**
-     * Copies all fields fromEntity source to target CustomerAppProfile.
+     * Copies all fields from source to target CustomerAppProfile.
      */
     private void copyCustomerAppProfileFields(CustomerAppProfile source, CustomerAppProfile target) {
         target.setCustomerAppId(source.getCustomerAppId());

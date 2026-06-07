@@ -28,19 +28,7 @@ spotless {
 
 allprojects {
     repositories {
-        maven {
-            def env = (System.getenv("DEPLOY_ENV") ?: "dev").toLowerCase()
-            def projectId = (env in ["dev", "qa"]) ? "573" : "320"
 
-            url = "https://git.wingbank.com.kh/api/v4/projects/${projectId}/dependency_proxy/packages/maven"
-            credentials(PasswordCredentials) {
-                username = System.getenv("SHARED_DEPLOY_USER") ?: project.findProperty("gitlabUser")
-                password = System.getenv("SHARED_DEPLOY_PASSWORD") ?: project.findProperty("gitlabToken")
-            }
-            authentication {
-                create("BASIC", BasicAuthentication)
-            }
-        }
     }
 }
 
@@ -104,8 +92,7 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-impl:0.13.0'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
-    // ── Feature flag + Search ─────────────────────────────────────────────
-    implementation 'dev.openfeature:sdk:1.19.2'
+    // ── Search ────────────────────────────────────────────────────────────
     implementation 'com.meilisearch.sdk:meilisearch-java:0.18.0'
 
     // ── Lombok ────────────────────────────────────────────────────────────

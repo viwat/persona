@@ -40,7 +40,7 @@ public class UserSessionCache {
     }
 
     /**
-     * Get session fromEntity cache by SHA key (Cache-Aside read).
+     * Get session from cache by SHA key (Cache-Aside read).
      *
      * @param sessionSha
      *            the session SHA key
@@ -78,7 +78,7 @@ public class UserSessionCache {
     }
 
     /**
-     * Evict session fromEntity cache by SHA key.
+     * Evict session from cache by SHA key.
      *
      * @param sessionSha
      *            the session SHA key
@@ -132,9 +132,9 @@ public class UserSessionCache {
         try {
             String cacheKey = generateCacheKey(sessionSha);
             redisTemplate.delete(cacheKey);
-            log.debug("Successfully removed UserSession fromEntity Redis with SHA: {}", sessionSha);
+            log.debug("Successfully removed UserSession from Redis with SHA: {}", sessionSha);
         } catch (Exception e) {
-            log.error("Error removing UserSession fromEntity Redis with SHA: {}", sessionSha, e);
+            log.error("Error removing UserSession from Redis with SHA: {}", sessionSha, e);
         }
     }
 
@@ -161,7 +161,7 @@ public class UserSessionCache {
             }
             return Optional.of(entry.getSession());
         } catch (Exception e) {
-            log.error("Error retrieving UserSession fromEntity local cache with SHA: {}", sessionSha, e);
+            log.error("Error retrieving UserSession from local cache with SHA: {}", sessionSha, e);
             return Optional.empty();
         }
     }
@@ -170,9 +170,9 @@ public class UserSessionCache {
         try {
             String cacheKey = generateCacheKey(sessionSha);
             localCache.remove(cacheKey);
-            log.debug("Successfully removed UserSession fromEntity local cache with SHA: {}", sessionSha);
+            log.debug("Successfully removed UserSession from local cache with SHA: {}", sessionSha);
         } catch (Exception e) {
-            log.error("Error removing UserSession fromEntity local cache with SHA: {}", sessionSha, e);
+            log.error("Error removing UserSession from local cache with SHA: {}", sessionSha, e);
         }
     }
 

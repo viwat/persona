@@ -102,8 +102,8 @@ public class UserPersonaCache {
             CustomerPersona persona = objectMapper.readValue(jsonValue, CustomerPersona.class);
             return Optional.of(persona);
         } catch (Exception e) {
-            log.error("Error retrieving CustomerPersona fromEntity Redis for customerKey: {}", customerKey, e);
-            throw new AppException("Failed to retrieve customer persona fromEntity Redis", ErrorCode.CACHE_ERROR, e);
+            log.error("Error retrieving CustomerPersona from Redis for customerKey: {}", customerKey, e);
+            throw new AppException("Failed to retrieve customer persona from Redis", ErrorCode.CACHE_ERROR, e);
         }
     }
 
@@ -112,10 +112,10 @@ public class UserPersonaCache {
         try {
             String cacheKey = generateCacheKey(customerKey);
             redisTemplate.delete(cacheKey);
-            log.debug("Successfully removed CustomerPersona fromEntity Redis for customerKey: {}", customerKey);
+            log.debug("Successfully removed CustomerPersona from Redis for customerKey: {}", customerKey);
         } catch (Exception e) {
-            log.error("Error removing CustomerPersona fromEntity Redis for customerKey: {}", customerKey, e);
-            throw new AppException("Failed to remove customer persona fromEntity Redis", ErrorCode.CACHE_ERROR, e);
+            log.error("Error removing CustomerPersona from Redis for customerKey: {}", customerKey, e);
+            throw new AppException("Failed to remove customer persona from Redis", ErrorCode.CACHE_ERROR, e);
         }
     }
 
@@ -142,9 +142,9 @@ public class UserPersonaCache {
             }
             return Optional.of(entry.getPersona());
         } catch (Exception e) {
-            log.error("Error retrieving CustomerPersona fromEntity local cache for customerKey: {}", customerKey, e);
+            log.error("Error retrieving CustomerPersona from local cache for customerKey: {}", customerKey, e);
             throw new AppException(
-                    "Failed to retrieve customer persona fromEntity local cache", ErrorCode.CACHE_ERROR, e);
+                    "Failed to retrieve customer persona from local cache", ErrorCode.CACHE_ERROR, e);
         }
     }
 
@@ -152,11 +152,11 @@ public class UserPersonaCache {
         try {
             String cacheKey = generateCacheKey(customerKey);
             localCache.remove(cacheKey);
-            log.debug("Successfully removed CustomerPersona fromEntity local cache for customerKey: {}", customerKey);
+            log.debug("Successfully removed CustomerPersona from local cache for customerKey: {}", customerKey);
         } catch (Exception e) {
-            log.error("Error removing CustomerPersona fromEntity local cache for customerKey: {}", customerKey, e);
+            log.error("Error removing CustomerPersona from local cache for customerKey: {}", customerKey, e);
             throw new AppException(
-                    "Failed to remove customer persona fromEntity local cache", ErrorCode.CACHE_ERROR, e);
+                    "Failed to remove customer persona from local cache", ErrorCode.CACHE_ERROR, e);
         }
     }
 

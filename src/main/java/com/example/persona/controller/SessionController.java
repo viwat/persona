@@ -66,7 +66,7 @@ public class SessionController {
     @GetMapping("/sha/{sessionSha}")
     @Operation(
             summary = "Get session by SHA",
-            description = "Retrieves the session information using the SHA key fromEntity cache")
+            description = "Retrieves the session information using the SHA key from cache")
     public ResponseEntity<ApiResponse<SessionResponse>> getSessionBySha(@PathVariable String sessionSha) {
 
         return sessionService
@@ -76,7 +76,7 @@ public class SessionController {
     }
 
     /**
-     * Extracts the client IP address fromEntity the request. Handles proxied
+     * Extracts the client IP address from the request. Handles proxied
      * requests by checking X-Forwarded-For header.
      */
     private String extractIpAddress(HttpServletRequest request) {

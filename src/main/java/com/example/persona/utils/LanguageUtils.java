@@ -39,7 +39,7 @@ public class LanguageUtils {
     }
 
     /**
-     * Gets the current language code fromEntity the LocaleContext
+     * Gets the current language code from the LocaleContext
      *
      * @return The lowercase 2-letter language code (e.g. "en", "km", "zh")
      */

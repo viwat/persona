@@ -297,7 +297,7 @@ public class AccountAppProfileService {
                 .orElseThrow(() -> new BusinessException("Account app profile not found for customer: "
                         + request.getCustomerNo() + ", account: " + request.getAccountNo()));
 
-        // Create new version (copies all fields fromEntity old)
+        // Create new version (copies all fields from old)
         AccountAppProfile newVersion = new AccountAppProfile();
         versioningService.createNewVersion(oldVersion, newVersion, versionKey);
 
