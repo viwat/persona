@@ -2,6 +2,7 @@ package com.example.persona.migration.repository;
 
 import com.example.persona.migration.enums.MigrationStageStatus;
 import com.example.persona.migration.model.CustomerMigrationStage;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
@@ -52,6 +53,15 @@ public interface CustomerMigrationStageRepository
     @EntityGraph(attributePaths = "stage")
     Optional<CustomerMigrationStage> findFirstByCustomerKeyAndStageStatusOrderByStage_DisplayOrderAsc(
             String customerKey, MigrationStageStatus stageStatus);
+
+    /**
+     * Combined PENDING-or-FAILED lookup — single query replacing the previous two-call
+     * {@code .or()} chain in {@link com.example.persona.migration.service.MigrationBackgroundProcessor}.
+     * Returns the first actionable stage ordered by display order.
+     */
+    @EntityGraph(attributePaths = "stage")
+    Optional<CustomerMigrationStage> findFirstByCustomerKeyAndStageStatusInOrderByStage_DisplayOrderAsc(
+            String customerKey, Collection<MigrationStageStatus> statuses);
 
     @Query("""
 			SELECT cms FROM CustomerMigrationStage cms

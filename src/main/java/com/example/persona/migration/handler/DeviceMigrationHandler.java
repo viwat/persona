@@ -21,15 +21,17 @@ import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
  * Handler for DEVICE migration stage. Migrates device registration data from
  * Oracle to PostgreSQL.
+ *
+ * <p>Absence of an active device is treated as a soft skip (stage completes
+ * with metadata) rather than a failure — customers that never registered a
+ * device are a valid state and should not block the overall migration job.
  */
-@Profile("!local")
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -75,13 +77,12 @@ public class DeviceMigrationHandler implements MigrationStageHandler {
             mergeCustomerProfileForStage(oracleRecord, parsedKey, cdpData);
 
             if (deviceOpt.isEmpty()) {
-                log.warn(
-                        "No active device found for customer: {} (MasterAccId: {})",
+                // Customer never registered a device — nothing to migrate; soft skip.
+                log.info(
+                        "No active device for customer: {} (MasterAccId: {}) — stage completed with skip",
                         customerKey,
                         oracleRecord.getMasterAccId());
-                return MigrationResult.failure(
-                        "NO_ACTIVE_DEVICE",
-                        "No active device (status DA) for master account: " + oracleRecord.getMasterAccId());
+                return MigrationResult.completed("NO_ACTIVE_DEVICE");
             }
 
             CustomerAppProfileRequest request =

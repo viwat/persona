@@ -5,6 +5,7 @@ import com.example.persona.migration.enums.MigrationJobStatus;
 import com.example.persona.migration.enums.MigrationStageStatus;
 import com.example.persona.migration.model.CustomerMigrationStage;
 import com.example.persona.migration.repository.CustomerMigrationStageRepository;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,12 +14,20 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
- * Async migration jobs. Transactional persistence and per-stage work
+ * Async migration jobs. Transactional persistence and per-stage work.
+ *
+ * <p><strong>isMandatory semantics:</strong> if a mandatory stage fails the entire job is
+ * aborted and marked FAILED. If a non-mandatory stage fails it is marked SKIPPED so the
+ * loop does not re-pick it, and processing continues with the next stage.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MigrationBackgroundProcessor {
+
+    /** Statuses considered "actionable" — picked up by the background loop. */
+    private static final List<MigrationStageStatus> ACTIONABLE_STATUSES =
+            List.of(MigrationStageStatus.PENDING, MigrationStageStatus.FAILED);
 
     private final CustomerMigrationStageRepository customerStageRepository;
     private final CustomerStageReconciler customerStageReconciler;
@@ -41,31 +50,45 @@ public class MigrationBackgroundProcessor {
             boolean jobFailed = false;
 
             while (continueProcessing) {
-                Optional<CustomerMigrationStage> nextStage = findNextStageToProcess(customerKey);
+                Optional<CustomerMigrationStage> nextStageOpt = findNextStageToProcess(customerKey);
 
-                if (nextStage.isEmpty()) {
+                if (nextStageOpt.isEmpty()) {
                     continueProcessing = false;
                 } else {
-                    CustomerMigrationStage stage = nextStage.get();
+                    CustomerMigrationStage stage = nextStageOpt.get();
+                    boolean mandatory = Boolean.TRUE.equals(stage.getStage().getIsMandatory());
+                    String stageCode = stage.getStage().getCode();
 
                     boolean success = migrationStageExecution.processStage(stage.getId());
 
                     if (success) {
                         completedStages++;
                         migrationJobPersistence.updateJobProgress(jobId, completedStages, totalStages);
-                    } else {
-                        Optional<CustomerMigrationStage> failedStage = customerStageRepository.findById(stage.getId());
-                        String errorCode = failedStage
-                                .map(CustomerMigrationStage::getErrorCode)
-                                .orElse("UNKNOWN");
-                        String errorMsg = failedStage
-                                .map(CustomerMigrationStage::getErrorMessage)
-                                .orElse("Stage Failed");
+                    } else if (mandatory) {
+                        // Mandatory stage failed — abort the job.
+                        CustomerMigrationStage failed = customerStageRepository
+                                .findById(stage.getId())
+                                .orElse(stage);
+                        String errorCode = failed.getErrorCode() != null
+                                ? failed.getErrorCode() : "STAGE_FAILED";
+                        String errorMsg = failed.getErrorMessage() != null
+                                ? failed.getErrorMessage() : "Mandatory stage failed: " + stageCode;
 
-                        log.warn("[ASYNC] Stage failed for job {}, stopping migration", jobId);
-                        migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
+                        log.warn("[ASYNC] Mandatory stage {} failed for job {} — stopping migration",
+                                stageCode, jobId);
+                        migrationJobPersistence.updateJobStatus(
+                                jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
                         jobFailed = true;
                         continueProcessing = false;
+                    } else {
+                        // Non-mandatory stage failed — mark SKIPPED so it is not re-picked, continue.
+                        log.warn("[ASYNC] Non-mandatory stage {} failed for job {} — skipping and continuing",
+                                stageCode, jobId);
+                        CustomerMigrationStage failed = customerStageRepository
+                                .findById(stage.getId())
+                                .orElse(stage);
+                        failed.setStageStatus(MigrationStageStatus.SKIPPED);
+                        customerStageRepository.save(failed);
                     }
                 }
             }
@@ -129,11 +152,13 @@ public class MigrationBackgroundProcessor {
         }
     }
 
+    /**
+     * Returns the next actionable stage (PENDING or FAILED) for the customer, ordered by
+     * display order. Single query — replaces the previous two-call {@code .or()} chain.
+     */
     private Optional<CustomerMigrationStage> findNextStageToProcess(String customerKey) {
         return customerStageRepository
-                .findFirstByCustomerKeyAndStageStatusOrderByStage_DisplayOrderAsc(
-                        customerKey, MigrationStageStatus.PENDING)
-                .or(() -> customerStageRepository.findFirstByCustomerKeyAndStageStatusOrderByStage_DisplayOrderAsc(
-                        customerKey, MigrationStageStatus.FAILED));
+                .findFirstByCustomerKeyAndStageStatusInOrderByStage_DisplayOrderAsc(
+                        customerKey, ACTIONABLE_STATUSES);
     }
 }

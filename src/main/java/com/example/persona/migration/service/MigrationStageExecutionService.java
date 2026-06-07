@@ -15,6 +15,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Executes a single migration stage inside its own transaction
+ * ({@code REQUIRES_NEW}) so that a stage failure does not roll back the outer
+ * job-tracking transaction.
+ *
+ * <p><strong>DB-access optimisation:</strong> the original implementation did
+ * 3–4 {@code findById} calls per stage (one to read, one inside
+ * {@code updateStageStatus}, one after setting IN_PROGRESS, one to save the
+ * final result). This version uses one initial fetch and then works on the
+ * managed entity throughout; {@code save()} returns the updated entity with the
+ * refreshed {@code @Version} so no re-fetch is needed before the next write.
+ */
 @Slf4j
 @Service
 public class MigrationStageExecutionService {
@@ -27,79 +39,70 @@ public class MigrationStageExecutionService {
         this.customerStageRepository = customerStageRepository;
         this.stageHandlers =
                 handlers.stream().collect(Collectors.toMap(MigrationStageHandler::getStageCode, Function.identity()));
-        log.info("Initialized MigrationStageExecutionService with {} handlers", stageHandlers.size());
+        log.info("Registered {} migration stage handler(s): {}", stageHandlers.size(), stageHandlers.keySet());
     }
 
+    /**
+     * Process one stage. Returns {@code true} on success, {@code false} on
+     * failure (error details are persisted to the stage row).
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean processStage(Long customerStageId) {
-        CustomerMigrationStage customerStage = customerStageRepository
+        // Single initial fetch — the entity is managed for the lifetime of this transaction.
+        CustomerMigrationStage stage = customerStageRepository
                 .findById(customerStageId)
-                .orElseThrow(() -> new IllegalArgumentException("Stage ID not found: " + customerStageId));
+                .orElseThrow(() -> new IllegalArgumentException("Stage row not found: " + customerStageId));
 
-        String stageCode = customerStage.getStage().getCode();
-        String customerKey = customerStage.getCustomerKey();
+        String stageCode = stage.getStage().getCode();
+        String customerKey = stage.getCustomerKey();
 
         log.info("Processing stage {} for customer: {}", stageCode, customerKey);
 
         MigrationStageHandler handler = stageHandlers.get(stageCode);
         if (handler == null) {
-            updateStageStatus(customerStageId, MigrationStageStatus.FAILED, "NO_HANDLER", "No handler registered");
+            log.error("No handler registered for stage code: {}", stageCode);
+            stage.setStageStatus(MigrationStageStatus.FAILED);
+            stage.setErrorCode("NO_HANDLER");
+            stage.setErrorMessage("No handler registered for stage: " + stageCode);
+            customerStageRepository.save(stage);
             return false;
         }
 
-        updateStageStatus(customerStageId, MigrationStageStatus.IN_PROGRESS, null, null);
-
-        customerStage = customerStageRepository
-                .findById(customerStageId)
-                .orElseThrow(() -> new IllegalArgumentException("Stage ID not found: " + customerStageId));
-
-        try {
-            MigrationResult result = handler.execute(customerStage);
-
-            if (result.success()) {
-                CustomerMigrationStage latest = customerStageRepository
-                        .findById(customerStageId)
-                        .orElseThrow(() -> new IllegalArgumentException("Stage ID not found: " + customerStageId));
-                latest.setStageStatus(MigrationStageStatus.COMPLETED);
-                latest.setCompletedAt(LocalDateTime.now());
-                latest.setErrorMessage(null);
-                latest.setErrorCode(null);
-                if (result.metadata() != null) {
-                    latest.setMetadata(result.metadata());
-                }
-                customerStageRepository.save(latest);
-                return true;
-            }
-            updateStageStatus(customerStageId, MigrationStageStatus.FAILED, result.errorCode(), result.errorMessage());
-            return false;
-
-        } catch (Exception e) {
-            log.error("Exception during stage {}", stageCode, e);
-            updateStageStatus(customerStageId, MigrationStageStatus.FAILED, "EXCEPTION", e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Loads the row from the database before mutating so {@code @Version} on
-     * {@link CustomerMigrationStage} is always current (avoids conflicts with
-     * concurrent HTTP {@code updateStageStatus} or other writers).
-     */
-    private void updateStageStatus(
-            Long customerStageId, MigrationStageStatus status, String errorCode, String errorMessage) {
-        CustomerMigrationStage stage = customerStageRepository
-                .findById(customerStageId)
-                .orElseThrow(() -> new IllegalArgumentException("Stage ID not found: " + customerStageId));
-        stage.setStageStatus(status);
-        if (status == MigrationStageStatus.IN_PROGRESS && stage.getStartedAt() == null) {
+        // Mark IN_PROGRESS and flush — save() returns the entity with updated @Version.
+        stage.setStageStatus(MigrationStageStatus.IN_PROGRESS);
+        if (stage.getStartedAt() == null) {
             stage.setStartedAt(LocalDateTime.now());
         }
-        if (status == MigrationStageStatus.FAILED) {
-            stage.setErrorCode(errorCode);
-            stage.setErrorMessage(errorMessage);
-            stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
-        }
+        stage = customerStageRepository.save(stage);
 
-        customerStageRepository.save(stage);
+        try {
+            MigrationResult result = handler.execute(stage);
+
+            if (result.success()) {
+                stage.setStageStatus(MigrationStageStatus.COMPLETED);
+                stage.setCompletedAt(LocalDateTime.now());
+                stage.setErrorMessage(null);
+                stage.setErrorCode(null);
+                if (result.metadata() != null) {
+                    stage.setMetadata(result.metadata());
+                }
+            } else {
+                stage.setStageStatus(MigrationStageStatus.FAILED);
+                stage.setErrorCode(result.errorCode());
+                stage.setErrorMessage(result.errorMessage());
+                stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
+            }
+            customerStageRepository.save(stage);
+            return result.success();
+
+        } catch (Exception e) {
+            log.error("Unexpected exception in stage {}", stageCode, e);
+            stage.setStageStatus(MigrationStageStatus.FAILED);
+            stage.setErrorCode("EXCEPTION");
+            stage.setErrorMessage(e.getMessage() != null ? e.getMessage() : "Unknown error");
+            stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
+            customerStageRepository.save(stage);
+            return false;
+        }
     }
 }

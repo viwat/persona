@@ -69,6 +69,8 @@ dependencies {
     implementation 'com.oracle.database.jdbc:ojdbc17'
     implementation 'com.oracle.database.ha:ons'
     implementation 'io.hypersistence:hypersistence-utils-hibernate-73:3.15.1'
+    // H2 in-memory DB — simulates Oracle source tables in local profile
+    runtimeOnly 'com.h2database:h2'
 
     // ── HTTP client ───────────────────────────────────────────────────────
     implementation 'org.apache.httpcomponents.client5:httpclient5'

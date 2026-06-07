@@ -44,7 +44,12 @@ public class MigrationStatusService {
 
         Optional<CustomerMigrationStage> completedFinalStage =
                 customerStageRepository.findCompletedFinalStage(customerKey);
-        boolean migrationCompleted = completedFinalStage.isPresent() && completedCount == totalStages;
+        // Migration is complete when: the final stage is COMPLETED AND every mandatory stage is COMPLETED.
+        // Non-mandatory stages that are FAILED or SKIPPED do not block completion.
+        boolean migrationCompleted = completedFinalStage.isPresent()
+                && customerStages.stream()
+                        .filter(cs -> Boolean.TRUE.equals(cs.getStage().getIsMandatory()))
+                        .allMatch(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED);
 
         CustomerMigrationStage currentStage = findCurrentStage(customerStages);
         CustomerMigrationStage nextPendingStage = findNextPendingStage(customerStages);

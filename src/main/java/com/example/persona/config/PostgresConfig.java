@@ -37,6 +37,10 @@ public class PostgresConfig {
     @Value("${spring.jpa.properties.hibernate.default_schema:dgtl_persona}")
     private String defaultSchema;
 
+    /** {@code update} locally (auto-creates tables); {@code none} in deployed envs (managed by Flyway/DBA). */
+    @Value("${spring.jpa.properties.hibernate.hbm2ddl.auto:none}")
+    private String hbm2ddlAuto;
+
     @Primary
     @Bean(name = "postgresDataSource")
     @ConfigurationProperties(prefix = "spring.datasource-pg")
@@ -62,7 +66,8 @@ public class PostgresConfig {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.default_schema", defaultSchema);
-        properties.put("hibernate.hbm2ddl.auto", "none");
+        properties.put("hibernate.hbm2ddl.auto", hbm2ddlAuto);
+        log.info("[PG EMF] hbm2ddl.auto: '{}'", hbm2ddlAuto);
         em.setJpaPropertyMap(properties);
 
         return em;
