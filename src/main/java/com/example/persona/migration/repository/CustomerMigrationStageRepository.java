@@ -63,14 +63,19 @@ public interface CustomerMigrationStageRepository
     Optional<CustomerMigrationStage> findFirstByCustomerKeyAndStageStatusInOrderByStage_DisplayOrderAsc(
             String customerKey, Collection<MigrationStageStatus> statuses);
 
+    /**
+     * Returns the final stage for the customer if it is "done" — either {@code COMPLETED} or
+     * {@code SKIPPED}. A non-mandatory final stage that was skipped (e.g. CARD for a customer
+     * with no cards) should still satisfy the migration-completion check.
+     */
     @Query("""
 			SELECT cms FROM CustomerMigrationStage cms
 			JOIN FETCH cms.stage
 			WHERE cms.customerKey = :customerKey
 			AND cms.stage.isFinal = true
-			AND cms.stageStatus = 'COMPLETED'
+			AND cms.stageStatus IN ('COMPLETED', 'SKIPPED')
 			""")
-    Optional<CustomerMigrationStage> findCompletedFinalStage(@Param("customerKey") String customerKey);
+    Optional<CustomerMigrationStage> findDoneFinalStage(@Param("customerKey") String customerKey);
 
     @Query("""
 			SELECT COUNT(cms) FROM CustomerMigrationStage cms
@@ -79,8 +84,12 @@ public interface CustomerMigrationStageRepository
 			""")
     long countCompletedStages(@Param("customerKey") String customerKey);
 
+    /** Total stage definitions (used at job-creation time). */
     @Query("SELECT COUNT(s) FROM MigrationStage s WHERE s.status = 'ACTIVE'")
     long countTotalActiveStages();
+
+    /** Number of stage rows initialised for this customer — used as the per-customer progress denominator. */
+    long countByCustomerKey(String customerKey);
 
     boolean existsByCustomerKeyAndStageStatus(String customerKey, MigrationStageStatus stageStatus);
 }

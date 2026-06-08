@@ -40,15 +40,26 @@ public class MigrationStatusService {
                 .filter(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED)
                 .count();
 
-        long totalStages = customerStageRepository.countTotalActiveStages();
+        // Use this customer's actual stage count — not the global active-stage count, which can
+        // diverge if stages are added after the customer was initialised.
+        long totalStages = customerStages.size();
 
-        Optional<CustomerMigrationStage> completedFinalStage =
-                customerStageRepository.findCompletedFinalStage(customerKey);
-        // Migration is complete when: the final stage is COMPLETED AND every mandatory stage is COMPLETED.
+        // Final stage is "done" when COMPLETED or SKIPPED (non-mandatory final stage may be skipped).
+        Optional<CustomerMigrationStage> doneFinalStage =
+                customerStageRepository.findDoneFinalStage(customerKey);
+
+        // Guard against a misconfigured stage table where no mandatory stages exist:
+        // allMatch() on an empty stream always returns true, which would falsely mark every
+        // customer as migration-complete.
+        List<CustomerMigrationStage> mandatoryStages = customerStages.stream()
+                .filter(cs -> Boolean.TRUE.equals(cs.getStage().getIsMandatory()))
+                .toList();
+
+        // Migration is complete when: the final stage is done AND every mandatory stage is COMPLETED.
         // Non-mandatory stages that are FAILED or SKIPPED do not block completion.
-        boolean migrationCompleted = completedFinalStage.isPresent()
-                && customerStages.stream()
-                        .filter(cs -> Boolean.TRUE.equals(cs.getStage().getIsMandatory()))
+        boolean migrationCompleted = !mandatoryStages.isEmpty()
+                && doneFinalStage.isPresent()
+                && mandatoryStages.stream()
                         .allMatch(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED);
 
         CustomerMigrationStage currentStage = findCurrentStage(customerStages);

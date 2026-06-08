@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,13 @@ public class MigrationStageExecutionService {
     /**
      * Process one stage. Returns {@code true} on success, {@code false} on
      * failure (error details are persisted to the stage row).
+     *
+     * <p>The final status write uses a one-time retry on
+     * {@link ObjectOptimisticLockingFailureException}: handler execution can take
+     * several seconds (Oracle + CDP calls), during which a concurrent HTTP write
+     * (e.g. manual status override) may bump {@code @Version}. On conflict the
+     * entity is re-fetched and the same outcome is re-applied, preventing the
+     * stage from getting stuck as {@code IN_PROGRESS}.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean processStage(Long customerStageId) {
@@ -68,41 +76,60 @@ public class MigrationStageExecutionService {
             return false;
         }
 
-        // Mark IN_PROGRESS and flush — save() returns the entity with updated @Version.
+        // Mark IN_PROGRESS — save() returns the entity with updated @Version.
         stage.setStageStatus(MigrationStageStatus.IN_PROGRESS);
         if (stage.getStartedAt() == null) {
             stage.setStartedAt(LocalDateTime.now());
         }
         stage = customerStageRepository.save(stage);
 
+        // Execute handler (separated so OLE on the final save is distinguishable).
+        MigrationResult result;
         try {
-            MigrationResult result = handler.execute(stage);
-
-            if (result.success()) {
-                stage.setStageStatus(MigrationStageStatus.COMPLETED);
-                stage.setCompletedAt(LocalDateTime.now());
-                stage.setErrorMessage(null);
-                stage.setErrorCode(null);
-                if (result.metadata() != null) {
-                    stage.setMetadata(result.metadata());
-                }
-            } else {
-                stage.setStageStatus(MigrationStageStatus.FAILED);
-                stage.setErrorCode(result.errorCode());
-                stage.setErrorMessage(result.errorMessage());
-                stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
-            }
-            customerStageRepository.save(stage);
-            return result.success();
-
+            result = handler.execute(stage);
         } catch (Exception e) {
             log.error("Unexpected exception in stage {}", stageCode, e);
-            stage.setStageStatus(MigrationStageStatus.FAILED);
-            stage.setErrorCode("EXCEPTION");
-            stage.setErrorMessage(e.getMessage() != null ? e.getMessage() : "Unknown error");
-            stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
+            result = MigrationResult.failure(
+                    "EXCEPTION", e.getMessage() != null ? e.getMessage() : "Unknown error");
+        }
+
+        applyResultToStage(stage, result);
+
+        // Persist — retry once if a concurrent write (e.g. HTTP status override) caused an OLE.
+        try {
             customerStageRepository.save(stage);
-            return false;
+        } catch (ObjectOptimisticLockingFailureException ole) {
+            log.warn("Optimistic lock conflict saving final status for stage {} — re-fetching and retrying",
+                    stageCode, ole);
+            CustomerMigrationStage fresh = customerStageRepository
+                    .findById(customerStageId)
+                    .orElseThrow(() -> new IllegalStateException("Stage row disappeared on OLE retry: "
+                            + customerStageId));
+            applyResultToStage(fresh, result);
+            customerStageRepository.save(fresh);
+        }
+
+        return result.success();
+    }
+
+    /**
+     * Applies a {@link MigrationResult} to the given stage entity (in-memory only; caller
+     * is responsible for persisting).
+     */
+    private void applyResultToStage(CustomerMigrationStage stage, MigrationResult result) {
+        if (result.success()) {
+            stage.setStageStatus(MigrationStageStatus.COMPLETED);
+            stage.setCompletedAt(LocalDateTime.now());
+            stage.setErrorMessage(null);
+            stage.setErrorCode(null);
+            if (result.metadata() != null) {
+                stage.setMetadata(result.metadata());
+            }
+        } else {
+            stage.setStageStatus(MigrationStageStatus.FAILED);
+            stage.setErrorCode(result.errorCode());
+            stage.setErrorMessage(result.errorMessage());
+            stage.setRetryCount(stage.getRetryCount() != null ? stage.getRetryCount() + 1 : 1);
         }
     }
 }

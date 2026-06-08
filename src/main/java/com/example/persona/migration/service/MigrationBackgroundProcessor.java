@@ -44,7 +44,9 @@ public class MigrationBackgroundProcessor {
             migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.IN_PROGRESS, null, null);
             customerStageReconciler.ensureInitializedOrReconciled(customerKey);
 
-            int totalStages = (int) customerStageRepository.countTotalActiveStages();
+            // Use per-customer stage count as denominator — avoids stale global count if stages are
+            // added to the master table after this customer was initialised.
+            int totalStages = (int) customerStageRepository.countByCustomerKey(customerKey);
             int completedStages = 0;
             boolean continueProcessing = true;
             boolean jobFailed = false;
@@ -112,7 +114,11 @@ public class MigrationBackgroundProcessor {
     }
 
     /**
-     * Process a single stage in background.
+     * Process a single stage in background (used by the retry / single-stage API).
+     *
+     * <p>Mirrors the {@code isMandatory} semantics of {@link #processMigrationAsync}: a
+     * non-mandatory stage failure marks the stage SKIPPED and the job COMPLETED rather than
+     * aborting with FAILED.
      */
     @Async("migrationTaskExecutor")
     public void processStageAsync(String jobId, String customerKey, String stageCode) {
@@ -130,10 +136,21 @@ public class MigrationBackgroundProcessor {
                 return;
             }
 
-            boolean success =
-                    migrationStageExecution.processStage(stageOpt.get().getId());
+            CustomerMigrationStage stage = stageOpt.get();
+            boolean mandatory = Boolean.TRUE.equals(stage.getStage().getIsMandatory());
+
+            boolean success = migrationStageExecution.processStage(stage.getId());
 
             if (success) {
+                migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
+            } else if (!mandatory) {
+                // Non-mandatory failure — skip and still mark the job as completed.
+                log.warn("[ASYNC-SINGLE] Non-mandatory stage {} failed — marking SKIPPED, job COMPLETED",
+                        stageCode);
+                customerStageRepository.findById(stage.getId()).ifPresent(s -> {
+                    s.setStageStatus(MigrationStageStatus.SKIPPED);
+                    customerStageRepository.save(s);
+                });
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
             } else {
                 migrationJobPersistence.updateJobStatus(

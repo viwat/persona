@@ -3,10 +3,12 @@ package com.example.persona.utils;
 import com.example.persona.favorite.dto.UserFavoriteCreateRequest;
 import com.example.persona.favorite.model.UserFavorite;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.MappingTarget;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class ConfigValueUtils {
     @AfterMapping
@@ -28,8 +30,14 @@ public class ConfigValueUtils {
     }
 
     private void setIfPresent(java.util.function.Consumer<String> setter, Map<String, String> attributes, String key) {
-        if (attributes.containsKey(key)) {
+        if (!attributes.containsKey(key)) {
+            return;
+        }
+        try {
             setter.accept(attributes.get(key));
+        } catch (Exception e) {
+            // Log and skip the bad attribute rather than aborting the entire mapping.
+            log.warn("Failed to map config attribute '{}': {}", key, e.getMessage());
         }
     }
 }
