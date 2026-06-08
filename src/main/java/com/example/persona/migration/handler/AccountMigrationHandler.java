@@ -49,23 +49,29 @@ public class AccountMigrationHandler implements MigrationStageHandler {
 
             BigDecimal availableBalance = accountDetailData.getAvailableBalance();
 
-            AccountProfile accountProfile = AccountProfile.builder()
-                    .accountNo(accountDetailData.getAccountNo())
-                    .customerNo(accountDetailData.getCustomerNo())
-                    .accountCategory(accountDetailData.getCategoryId())
-                    .accountName(accountDetailData.getName())
-                    .accountType(accountDetailData.getAccountType())
-                    .accountStatus(accountDetailData.getResidentStatus())
-                    .classOfService(accountDetailData.getCategoryProfileName())
-                    .balance(availableBalance != null ? availableBalance : BigDecimal.ZERO)
-                    .status(com.example.persona.enums.StatusType.ACTIVE)
-                    .build();
+            String customerNo = accountDetailData.getCustomerNo();
+            String accountNo  = accountDetailData.getAccountNo();
+
+            AccountProfile accountProfile = accountProfileRepository
+                    .findByCustomerNoAndAccountNo(customerNo, accountNo)
+                    .orElseGet(() -> AccountProfile.builder()
+                            .accountNo(accountNo)
+                            .customerNo(customerNo)
+                            .status(com.example.persona.enums.StatusType.ACTIVE)
+                            .build());
+
+            accountProfile.setAccountCategory(accountDetailData.getCategoryId());
+            accountProfile.setAccountName(accountDetailData.getName());
+            accountProfile.setAccountType(accountDetailData.getAccountType());
+            accountProfile.setAccountStatus(accountDetailData.getResidentStatus());
+            accountProfile.setClassOfService(accountDetailData.getCategoryProfileName());
+            accountProfile.setBalance(availableBalance != null ? availableBalance : BigDecimal.ZERO);
             accountProfileRepository.save(accountProfile);
 
             AccountAppManagementRequest accountAppManagementRequest = AccountAppManagementRequest.builder()
                     .accountNo(accountProfile.getAccountNo())
                     .customerNo(accountProfile.getCustomerNo())
-                    .masterAccountNo("")
+                    .masterAccountNo(StringUtils.hasText(parsedKey.masterAccId()) ? parsedKey.masterAccId() : null)
                     .accountName(accountProfile.getAccountName())
                     .accountHolderName(accountDetailData.getName())
                     .phoneNo(accountDetailData.getMsisdn())

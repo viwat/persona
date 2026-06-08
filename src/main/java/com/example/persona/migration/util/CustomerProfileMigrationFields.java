@@ -13,7 +13,6 @@ import org.springframework.util.StringUtils;
 public final class CustomerProfileMigrationFields {
 
     private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final DateTimeFormatter SIMPLE_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private CustomerProfileMigrationFields() {
         throw new UnsupportedOperationException("Utility class");
@@ -68,11 +67,6 @@ public final class CustomerProfileMigrationFields {
         String t = uniqueIdExp.trim();
         try {
             return LocalDate.parse(t, ISO_DATE).atStartOfDay();
-        } catch (DateTimeParseException ignored) {
-            // fall through
-        }
-        try {
-            return LocalDate.parse(t, SIMPLE_DATE).atStartOfDay();
         } catch (DateTimeParseException ignored) {
             // fall through
         }

@@ -15,11 +15,7 @@ import com.example.persona.migration.util.CustomerProfileMigrationFields;
 import com.example.persona.profile.dto.request.CustomerAppProfileRequest;
 import com.example.persona.profile.service.CustomerAppProfileService;
 import com.example.persona.profile.service.CustomerProfileService;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -30,16 +26,22 @@ import org.springframework.util.StringUtils;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class MasterAccountMigrationHandler implements MigrationStageHandler {
+public class MasterAccountMigrationHandler extends AbstractOracleMigrationHandler {
 
     public static final String STAGE_CODE = "MASTER_ACCOUNT";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    private final DigiMasterAccountViewRepository digiMasterAccountViewRepository;
     private final CustomerAppProfileService customerAppProfileService;
     private final CustomerProfileService customerProfileService;
-    private final CdpClient cdpClient;
+
+    public MasterAccountMigrationHandler(
+            DigiMasterAccountViewRepository digiMasterAccountViewRepository,
+            CdpClient cdpClient,
+            CustomerAppProfileService customerAppProfileService,
+            CustomerProfileService customerProfileService) {
+        super(digiMasterAccountViewRepository, cdpClient);
+        this.customerAppProfileService = customerAppProfileService;
+        this.customerProfileService = customerProfileService;
+    }
 
     @Override
     public String getStageCode() {
@@ -94,53 +96,6 @@ public class MasterAccountMigrationHandler implements MigrationStageHandler {
         }
     }
 
-    /**
-     * Looks up Oracle data. Order: login id (WINGPAY) -> account no as login id (WINGPAY) -> master account id last.
-     */
-    private Optional<DigiMasterAccountView> getDataFromSource(ParsedKey key) {
-        if (StringUtils.hasText(key.loginId())) {
-            Optional<DigiMasterAccountView> result = digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
-                    key.loginId(), MigrationConstants.APPLICATION_ID_WINGPAY);
-            if (result.isPresent()) {
-                return result;
-            }
-        }
-
-        if (StringUtils.hasText(key.accountNo())) {
-            Optional<DigiMasterAccountView> result = digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
-                    key.accountNo(), MigrationConstants.APPLICATION_ID_WINGPAY);
-            if (result.isPresent()) {
-                return result;
-            }
-        }
-
-        if (StringUtils.hasText(key.masterAccId())) {
-            Optional<DigiMasterAccountView> result =
-                    digiMasterAccountViewRepository.findByMasterAccId(key.masterAccId());
-            if (result.isPresent()) {
-                return result;
-            }
-        }
-
-        return Optional.empty();
-    }
-
-    private AccountDetail.AccountDetailData fetchCdpData(String accountNo) {
-        if (!StringUtils.hasText(accountNo)) {
-            return null;
-        }
-        try {
-            AccountDetail.AccountDetailData cdpData = cdpClient.getAccountInfo(accountNo);
-            if (cdpData != null) {
-                log.debug("Found CDP data for accountNo: {}", accountNo);
-            }
-            return cdpData;
-        } catch (Exception e) {
-            log.warn("Failed to fetch CDP data for accountNo: {} - {}", accountNo, e.getMessage());
-            return null;
-        }
-    }
-
     private CustomerAppProfileRequest transformToRequest(
             DigiMasterAccountView oracle,
             ParsedKey key,
@@ -160,7 +115,7 @@ public class MasterAccountMigrationHandler implements MigrationStageHandler {
                 .masterAccountNo(oracle != null ? oracle.getMasterAccId() : null)
                 .customerName(customerName)
                 .kycStatus(CdpKycStatus.resolve(cdpData))
-                .channelCode("MOBAPP");
+                .channelCode(MigrationConstants.CHANNEL_CODE_MOBAPP);
 
         // Populate additional fields from CDP if available
         if (cdpData != null) {
@@ -183,17 +138,5 @@ public class MasterAccountMigrationHandler implements MigrationStageHandler {
         }
 
         return builder.build();
-    }
-
-    private LocalDate parseDateOfBirth(String dateStr) {
-        if (!StringUtils.hasText(dateStr)) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(dateStr, DATE_FORMATTER);
-        } catch (DateTimeParseException e) {
-            log.debug("Could not parse date of birth: {} - {}", dateStr, e.getMessage());
-            return null;
-        }
     }
 }

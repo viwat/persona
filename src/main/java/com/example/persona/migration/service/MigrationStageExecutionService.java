@@ -1,6 +1,7 @@
 package com.example.persona.migration.service;
 
 import com.example.persona.migration.dto.MigrationResult;
+import com.example.persona.migration.dto.StageProcessResult;
 import com.example.persona.migration.enums.MigrationStageStatus;
 import com.example.persona.migration.handler.MigrationStageHandler;
 import com.example.persona.migration.model.CustomerMigrationStage;
@@ -44,8 +45,8 @@ public class MigrationStageExecutionService {
     }
 
     /**
-     * Process one stage. Returns {@code true} on success, {@code false} on
-     * failure (error details are persisted to the stage row).
+     * Process one stage. Returns a {@link StageProcessResult} carrying the success flag and
+     * error details so callers do not need to re-fetch the stage entity.
      *
      * <p>The final status write uses a one-time retry on
      * {@link ObjectOptimisticLockingFailureException}: handler execution can take
@@ -55,7 +56,7 @@ public class MigrationStageExecutionService {
      * stage from getting stuck as {@code IN_PROGRESS}.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean processStage(Long customerStageId) {
+    public StageProcessResult processStage(Long customerStageId) {
         // Single initial fetch — the entity is managed for the lifetime of this transaction.
         CustomerMigrationStage stage = customerStageRepository
                 .findById(customerStageId)
@@ -73,7 +74,7 @@ public class MigrationStageExecutionService {
             stage.setErrorCode("NO_HANDLER");
             stage.setErrorMessage("No handler registered for stage: " + stageCode);
             customerStageRepository.save(stage);
-            return false;
+            return StageProcessResult.failure("NO_HANDLER", "No handler registered for stage: " + stageCode);
         }
 
         // Mark IN_PROGRESS — save() returns the entity with updated @Version.
@@ -109,7 +110,9 @@ public class MigrationStageExecutionService {
             customerStageRepository.save(fresh);
         }
 
-        return result.success();
+        return result.success()
+                ? StageProcessResult.ok()
+                : StageProcessResult.failure(result.errorCode(), result.errorMessage());
     }
 
     /**

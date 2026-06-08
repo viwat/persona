@@ -12,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -28,7 +29,10 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @Table(
         name = "dgtl_customer_migration_stage",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"customer_key", "stage_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"customer_key", "stage_id"}),
+        indexes = {
+            @Index(name = "idx_cms_customer_status", columnList = "customer_key, stage_status")
+        })
 @Getter
 @Setter
 @NoArgsConstructor

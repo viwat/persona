@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -313,7 +314,7 @@ public class MigrationService {
      * @return list of jobs
      */
     public List<MigrationJobResponse> getCustomerJobs(String customerKey) {
-        return jobRepository.findByCustomerKeyOrderByCreatedDateDesc(customerKey).stream()
+        return jobRepository.findByCustomerKeyOrderByCreatedDateDesc(customerKey, PageRequest.of(0, 50)).stream()
                 .map(MigrationJobResponse::fromEntity)
                 .toList();
     }

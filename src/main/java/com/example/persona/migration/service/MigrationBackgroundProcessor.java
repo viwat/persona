@@ -1,6 +1,8 @@
 package com.example.persona.migration.service;
 
 import com.example.persona.enums.ErrorCode;
+import com.example.persona.migration.constants.MigrationConstants;
+import com.example.persona.migration.dto.StageProcessResult;
 import com.example.persona.migration.enums.MigrationJobStatus;
 import com.example.persona.migration.enums.MigrationStageStatus;
 import com.example.persona.migration.model.CustomerMigrationStage;
@@ -50,8 +52,10 @@ public class MigrationBackgroundProcessor {
             int completedStages = 0;
             boolean continueProcessing = true;
             boolean jobFailed = false;
+            int maxIterations = totalStages * 3;
+            int iterations = 0;
 
-            while (continueProcessing) {
+            while (continueProcessing && iterations++ < maxIterations) {
                 Optional<CustomerMigrationStage> nextStageOpt = findNextStageToProcess(customerKey);
 
                 if (nextStageOpt.isEmpty()) {
@@ -61,20 +65,17 @@ public class MigrationBackgroundProcessor {
                     boolean mandatory = Boolean.TRUE.equals(stage.getStage().getIsMandatory());
                     String stageCode = stage.getStage().getCode();
 
-                    boolean success = migrationStageExecution.processStage(stage.getId());
+                    StageProcessResult stageResult = migrationStageExecution.processStage(stage.getId());
 
-                    if (success) {
+                    if (stageResult.success()) {
                         completedStages++;
                         migrationJobPersistence.updateJobProgress(jobId, completedStages, totalStages);
                     } else if (mandatory) {
-                        // Mandatory stage failed — abort the job.
-                        CustomerMigrationStage failed = customerStageRepository
-                                .findById(stage.getId())
-                                .orElse(stage);
-                        String errorCode = failed.getErrorCode() != null
-                                ? failed.getErrorCode() : "STAGE_FAILED";
-                        String errorMsg = failed.getErrorMessage() != null
-                                ? failed.getErrorMessage() : "Mandatory stage failed: " + stageCode;
+                        // Mandatory stage failed — abort the job using result directly (no re-fetch needed).
+                        String errorCode = stageResult.errorCode() != null
+                                ? stageResult.errorCode() : MigrationConstants.ERROR_CODE_STAGE_FAILED;
+                        String errorMsg = stageResult.errorMessage() != null
+                                ? stageResult.errorMessage() : "Mandatory stage failed: " + stageCode;
 
                         log.warn("[ASYNC] Mandatory stage {} failed for job {} — stopping migration",
                                 stageCode, jobId);
@@ -95,7 +96,15 @@ public class MigrationBackgroundProcessor {
                 }
             }
 
-            if (!jobFailed) {
+            if (iterations >= maxIterations) {
+                log.error("[ASYNC] Job {} exceeded max iterations ({}) — possible infinite retry loop",
+                        jobId, maxIterations);
+                migrationJobPersistence.updateJobStatus(
+                        jobId,
+                        MigrationJobStatus.FAILED,
+                        "MAX_ITERATIONS_EXCEEDED",
+                        "Loop exceeded " + maxIterations + " iterations — possible infinite retry");
+            } else if (!jobFailed) {
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
                 log.info("[ASYNC] Job {} completed", jobId);
             }
@@ -139,9 +148,9 @@ public class MigrationBackgroundProcessor {
             CustomerMigrationStage stage = stageOpt.get();
             boolean mandatory = Boolean.TRUE.equals(stage.getStage().getIsMandatory());
 
-            boolean success = migrationStageExecution.processStage(stage.getId());
+            StageProcessResult stageResult = migrationStageExecution.processStage(stage.getId());
 
-            if (success) {
+            if (stageResult.success()) {
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
             } else if (!mandatory) {
                 // Non-mandatory failure — skip and still mark the job as completed.
@@ -153,8 +162,12 @@ public class MigrationBackgroundProcessor {
                 });
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
             } else {
+                String errorCode = stageResult.errorCode() != null
+                        ? stageResult.errorCode() : MigrationConstants.ERROR_CODE_STAGE_FAILED;
+                String errorMsg = stageResult.errorMessage() != null
+                        ? stageResult.errorMessage() : "Check stage logs";
                 migrationJobPersistence.updateJobStatus(
-                        jobId, MigrationJobStatus.FAILED, "STAGE_FAILED", "Check stage logs");
+                        jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
             }
 
         } catch (Exception e) {

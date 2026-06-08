@@ -8,6 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Persistence operations for {@link com.example.persona.migration.model.MigrationJob}.
+ *
+ * <p>Each method issues a single targeted {@code UPDATE} via a {@code @Modifying} JPQL query,
+ * eliminating the prior {@code findByJobId} SELECT + {@code save()} round-trip. The
+ * {@code REQUIRES_NEW} propagation keeps these writes isolated from the caller's outer
+ * transaction so a job-status update is never rolled back by a stage failure.
+ */
 @Service
 @RequiredArgsConstructor
 public class MigrationJobPersistenceService {
@@ -16,28 +24,21 @@ public class MigrationJobPersistenceService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateJobStatus(String jobId, MigrationJobStatus status, String errorCode, String errorMessage) {
-        jobRepository.findByJobId(jobId).ifPresent(job -> {
-            job.setJobStatus(status);
-            if (status == MigrationJobStatus.IN_PROGRESS && job.getStartedAt() == null) {
-                job.setStartedAt(LocalDateTime.now());
-            }
-            if (status == MigrationJobStatus.COMPLETED || status == MigrationJobStatus.FAILED) {
-                job.setCompletedAt(LocalDateTime.now());
-            }
-            if (status == MigrationJobStatus.FAILED) {
-                job.setErrorCode(errorCode);
-                job.setErrorMessage(errorMessage);
-            }
-            jobRepository.save(job);
-        });
+        LocalDateTime completedAt = (status == MigrationJobStatus.COMPLETED || status == MigrationJobStatus.FAILED)
+                ? LocalDateTime.now() : null;
+        // Only persist errorCode/errorMessage on FAILED; clear them otherwise.
+        String resolvedCode = status == MigrationJobStatus.FAILED ? errorCode : null;
+        String resolvedMsg  = status == MigrationJobStatus.FAILED ? errorMessage : null;
+
+        jobRepository.updateStatusFields(jobId, status, resolvedCode, resolvedMsg, completedAt);
+
+        if (status == MigrationJobStatus.IN_PROGRESS) {
+            jobRepository.setStartedAtIfNull(jobId, LocalDateTime.now());
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateJobProgress(String jobId, int completedStages, int totalStages) {
-        jobRepository.findByJobId(jobId).ifPresent(job -> {
-            job.setCompletedStages(completedStages);
-            job.setTotalStages(totalStages);
-            jobRepository.save(job);
-        });
+        jobRepository.updateProgress(jobId, completedStages, totalStages);
     }
 }

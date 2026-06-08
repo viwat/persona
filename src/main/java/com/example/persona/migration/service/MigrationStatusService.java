@@ -4,7 +4,6 @@ import com.example.persona.migration.dto.CustomerMigrationStageResponse;
 import com.example.persona.migration.dto.MigrationStatusResponse;
 import com.example.persona.migration.enums.MigrationStageStatus;
 import com.example.persona.migration.model.CustomerMigrationStage;
-import com.example.persona.migration.repository.CustomerMigrationStageRepository;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MigrationStatusService {
 
     private final CustomerStageReconciler customerStageReconciler;
-    private final CustomerMigrationStageRepository customerStageRepository;
 
     /**
      * Check migration status for a customer. Returns current stage, whether at
@@ -45,8 +43,12 @@ public class MigrationStatusService {
         long totalStages = customerStages.size();
 
         // Final stage is "done" when COMPLETED or SKIPPED (non-mandatory final stage may be skipped).
-        Optional<CustomerMigrationStage> doneFinalStage =
-                customerStageRepository.findDoneFinalStage(customerKey);
+        // Resolved from the already-loaded list — no extra DB round-trip.
+        Optional<CustomerMigrationStage> doneFinalStage = customerStages.stream()
+                .filter(cs -> Boolean.TRUE.equals(cs.getStage().getIsFinal()))
+                .filter(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED
+                           || cs.getStageStatus() == MigrationStageStatus.SKIPPED)
+                .findFirst();
 
         // Guard against a misconfigured stage table where no mandatory stages exist:
         // allMatch() on an empty stream always returns true, which would falsely mark every

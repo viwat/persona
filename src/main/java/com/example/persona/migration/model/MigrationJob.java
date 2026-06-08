@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -24,7 +25,11 @@ import lombok.experimental.SuperBuilder;
  * reference.
  */
 @Entity
-@Table(name = "dgtl_migration_job")
+@Table(
+        name = "dgtl_migration_job",
+        indexes = {
+            @Index(name = "idx_mj_customer_status", columnList = "customer_key, job_status")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
