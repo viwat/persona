@@ -62,8 +62,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.apache.commons:commons-pool2'
-    // Jedis — used by location feature (LocationCacheService / LocationRedisConfig)
-    implementation 'redis.clients:jedis'
 
     // ── Data ──────────────────────────────────────────────────────────────
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

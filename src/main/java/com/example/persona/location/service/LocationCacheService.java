@@ -3,17 +3,20 @@ package com.example.persona.location.service;
 import com.example.persona.location.model.Location;
 import com.example.persona.location.model.LocationType;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.params.ScanParams;
-import redis.clients.jedis.resps.ScanResult;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,7 +29,7 @@ public class LocationCacheService {
     private static final String KEY_PREFIX_ALL = "location:all:";
     private static final String KEY_ALL_WILDCARD = "location:*";
 
-    private final JedisPool jedisPool;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
     @Value("${location.cache.ttl-seconds:300}")
@@ -37,8 +40,8 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "getByIdFallback")
     public Optional<Location> getById(UUID id) {
-        try (Jedis jedis = jedisPool.getResource()) {
-            String json = jedis.get(KEY_PREFIX_LOCATION + id);
+        try {
+            String json = redisTemplate.opsForValue().get(KEY_PREFIX_LOCATION + id);
             if (json == null) return Optional.empty();
             return Optional.of(objectMapper.readValue(json, Location.class));
         } catch (Exception e) {
@@ -49,8 +52,13 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "putByIdFallback")
     public void putById(Location location) {
-        try (Jedis jedis = jedisPool.getResource()) {
-            jedis.setex(KEY_PREFIX_LOCATION + location.getId(), ttlSeconds, objectMapper.writeValueAsString(location));
+        try {
+            redisTemplate
+                    .opsForValue()
+                    .set(
+                            KEY_PREFIX_LOCATION + location.getId(),
+                            objectMapper.writeValueAsString(location),
+                            Duration.ofSeconds(ttlSeconds));
         } catch (Exception e) {
             log.warn("Redis putById failed for {}: {}", location.getId(), e.getMessage());
         }
@@ -58,8 +66,8 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "evictByIdFallback")
     public void evictById(UUID id) {
-        try (Jedis jedis = jedisPool.getResource()) {
-            jedis.del(KEY_PREFIX_LOCATION + id);
+        try {
+            redisTemplate.delete(KEY_PREFIX_LOCATION + id);
         } catch (Exception e) {
             log.warn("Redis evictById failed for {}: {}", id, e.getMessage());
         }
@@ -67,8 +75,8 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "getAllByTypesFallback")
     public Optional<List<Location>> getAllByTypes(List<LocationType> types) {
-        try (Jedis jedis = jedisPool.getResource()) {
-            String json = jedis.get(buildAllKey(types));
+        try {
+            String json = redisTemplate.opsForValue().get(buildAllKey(types));
             if (json == null) return Optional.empty();
             return Optional.of(objectMapper.readValue(json, new TypeReference<>() {}));
         } catch (Exception e) {
@@ -79,8 +87,13 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "putAllByTypesFallback")
     public void putAllByTypes(List<LocationType> types, List<Location> locations) {
-        try (Jedis jedis = jedisPool.getResource()) {
-            jedis.setex(buildAllKey(types), allLocationsTtlSeconds, objectMapper.writeValueAsString(locations));
+        try {
+            redisTemplate
+                    .opsForValue()
+                    .set(
+                            buildAllKey(types),
+                            objectMapper.writeValueAsString(locations),
+                            Duration.ofSeconds(allLocationsTtlSeconds));
         } catch (Exception e) {
             log.warn("Redis putAllByTypes failed: {}", e.getMessage());
         }
@@ -88,15 +101,22 @@ public class LocationCacheService {
 
     @CircuitBreaker(name = "redis", fallbackMethod = "evictAllFallback")
     public void evictAll() {
-        try (Jedis jedis = jedisPool.getResource()) {
-            String cursor = "0";
-            do {
-                ScanParams params = new ScanParams().match(KEY_ALL_WILDCARD).count(100);
-                ScanResult<String> result = jedis.scan(cursor, params);
-                cursor = result.getCursor();
-                List<String> keys = result.getResult();
-                if (!keys.isEmpty()) jedis.del(keys.toArray(new String[0]));
-            } while (!"0".equals(cursor));
+        try {
+            List<String> keys = new ArrayList<>();
+            redisTemplate.execute((RedisCallback<Void>) connection -> {
+                try (Cursor<byte[]> cursor = connection
+                        .keyCommands()
+                        .scan(ScanOptions.scanOptions()
+                                .match(KEY_ALL_WILDCARD)
+                                .count(100)
+                                .build())) {
+                    cursor.forEachRemaining(k -> keys.add(new String(k, StandardCharsets.UTF_8)));
+                }
+                return null;
+            });
+            if (!keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
         } catch (Exception e) {
             log.warn("Redis evictAll failed: {}", e.getMessage());
         }

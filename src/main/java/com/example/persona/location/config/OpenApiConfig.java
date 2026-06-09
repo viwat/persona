@@ -32,7 +32,7 @@ public class OpenApiConfig {
 
                                 **Search** powered by Meilisearch (PostgreSQL fallback).
                                 **Proximity** powered by PostGIS ST_DWithin.
-                                **Caching** via Redis (Jedis).
+                                **Caching** via Redis (Lettuce).
                                 """)
                         .version("1.0.0")
                         .contact(new Contact().name("Wing Bank Engineering").email("engineering@wingbank.com.kh"))
