@@ -1,7 +1,7 @@
 package com.example.persona.search.queries;
 
-import com.meilisearch.sdk.SearchRequest;
 import com.example.persona.search.dto.SearchCriteria;
+import com.meilisearch.sdk.SearchRequest;
 import java.util.ArrayList;
 import java.util.List;
 

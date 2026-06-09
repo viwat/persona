@@ -1,17 +1,17 @@
 package com.example.persona.search.service;
 
-import com.meilisearch.sdk.Client;
-import com.meilisearch.sdk.Index;
-import com.meilisearch.sdk.SearchRequest;
-import com.meilisearch.sdk.exceptions.MeilisearchException;
-import com.meilisearch.sdk.model.SearchResult;
-import com.meilisearch.sdk.model.SearchResultPaginated;
 import com.example.persona.location.dto.response.LocationResponse;
 import com.example.persona.search.dto.LocationSearchResult;
 import com.example.persona.search.dto.PaginatedResult;
 import com.example.persona.search.dto.SearchCriteria;
 import com.example.persona.search.dto.request.LocationSearch;
 import com.example.persona.search.queries.LocationQueryBuilder;
+import com.meilisearch.sdk.Client;
+import com.meilisearch.sdk.Index;
+import com.meilisearch.sdk.SearchRequest;
+import com.meilisearch.sdk.exceptions.MeilisearchException;
+import com.meilisearch.sdk.model.SearchResult;
+import com.meilisearch.sdk.model.SearchResultPaginated;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;

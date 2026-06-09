@@ -17,7 +17,7 @@ spring:
 
   # H2 in-memory DB simulating Oracle source tables (read-only migration source)
   datasource-oracle:
-    url: jdbc:h2:mem:oracle_src;MODE=Oracle;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=TRUE
+    jdbc-url: jdbc:h2:mem:oracle_src;MODE=Oracle;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=TRUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -37,6 +37,18 @@ spring:
         hbm2ddl:
           auto: update
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   data:
     redis:
       host: localhost
@@ -54,6 +66,13 @@ spring:
           max-wait: 1000
           time-between-eviction-runs: 60000
         shutdown-timeout: 100ms
+      # Jedis pool config — used by location feature (LocationRedisConfig)
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+          max-wait-ms: 500
 
 persona:
   migration:
@@ -106,9 +125,55 @@ pinless:
     ttl-minutes: 5
     key-prefix: "local"
 
+meilisearch:
+  enabled: true
+  host: http://localhost:7700
+  masterKey: masterKey
+  index:
+    locations: locations
+  search:
+    default-limit: 20
+    max-limit: 100
+
+storage:
+  s3:
+    bucket: location-images
+    region: ap-southeast-1
+    access-key: minioadmin
+    secret-key: minioadmin
+    endpoint-override: http://localhost:9000
+    public-base-url: http://localhost:9000/location-images
+
+location:
+  cache:
+    ttl-seconds: 300
+    nearby-ttl-seconds: 60
+    all-locations-ttl-seconds: 600
+  search:
+    nearby-default-radius-km: 5.0
+    nearby-max-radius-km: 50.0
+
 resilience4j:
   circuitbreaker:
     instances:
+      meilisearch:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 2s
+      redis:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 300ms
+        slow-call-rate-threshold: 50
+        permitted-number-of-calls-in-half-open-state: 2
+        wait-duration-in-open-state: 10s
       pinlessRedis:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
@@ -116,6 +181,14 @@ resilience4j:
         wait-duration-in-open-state: 15s
         permitted-number-of-calls-in-half-open-state: 3
         register-health-indicator: true
+  retry:
+    instances:
+      meilisearch:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
 
 springdoc:
   api-docs:

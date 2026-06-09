@@ -1,15 +1,15 @@
 package com.example.persona.search.service;
 
-import com.meilisearch.sdk.Client;
-import com.meilisearch.sdk.Index;
-import com.meilisearch.sdk.SearchRequest;
-import com.meilisearch.sdk.exceptions.MeilisearchException;
-import com.meilisearch.sdk.model.SearchResultPaginated;
 import com.example.persona.search.dto.BillerSearchResult;
 import com.example.persona.search.dto.PaginatedResult;
 import com.example.persona.search.dto.SearchCriteria;
 import com.example.persona.search.dto.request.BillerSearch;
 import com.example.persona.search.queries.BillerQueryBuilder;
+import com.meilisearch.sdk.Client;
+import com.meilisearch.sdk.Index;
+import com.meilisearch.sdk.SearchRequest;
+import com.meilisearch.sdk.exceptions.MeilisearchException;
+import com.meilisearch.sdk.model.SearchResultPaginated;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

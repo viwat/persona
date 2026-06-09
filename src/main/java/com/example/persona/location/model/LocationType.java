@@ -1,48 +1,41 @@
 package com.example.persona.location.model;
 
-import com.example.persona.model.BaseModel;
-import com.example.persona.model.MultilingualContent;
-import jakarta.persistence.*;
-import java.util.List;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.Arrays;
 
-@Getter
-@Setter
-@SuperBuilder
-@AllArgsConstructor
-@NoArgsConstructor
-@Entity
-@Table(
-        name = "dgtl_location_type",
-        indexes = {@Index(name = "idx_location_type_code", columnList = "code")})
-public class LocationType extends BaseModel {
+/**
+ * Extensible enum for location types.
+ * New types can be added without breaking existing consumers.
+ */
+public enum LocationType {
+    BRANCH("branch", "Bank Branch"),
+    ATM_CRM("atm_crm", "ATM/CRM"),
+    AGENT("agent", "Bank Agent"),
+    MASTER_AGENT("master_agent", "Bank Master Agent");
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private final String code;
+    private final String displayName;
 
-    @Column(unique = true, nullable = false)
-    private String code;
+    LocationType(String code, String displayName) {
+        this.code = code;
+        this.displayName = displayName;
+    }
 
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "en", column = @Column(name = "name_en")),
-        @AttributeOverride(name = "km", column = @Column(name = "name_km")),
-        @AttributeOverride(name = "zh", column = @Column(name = "name_zh"))
-    })
-    private MultilingualContent name;
+    @JsonValue
+    public String getCode() {
+        return code;
+    }
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    public String getDisplayName() {
+        return displayName;
+    }
 
-    @Column(name = "icon_url")
-    private String iconUrl;
-
-    @Column(name = "default_image_url")
-    private String defaultImageUrl;
-
-    // One type has many locations
-    @OneToMany(mappedBy = "locationType")
-    private List<Location> locations;
+    @JsonCreator
+    public static LocationType fromCode(String code) {
+        return Arrays.stream(values())
+                .filter(t -> t.code.equalsIgnoreCase(code))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown location type: " + code));
+    }
 }

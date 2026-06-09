@@ -1,9 +1,5 @@
 package com.example.persona.seeder;
 
-import com.example.persona.location.model.Location;
-import com.example.persona.location.model.LocationType;
-import com.example.persona.location.repository.LocationRepository;
-import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.model.MultilingualContent;
 import com.example.persona.profile.model.AccountAppProfile;
 import com.example.persona.profile.model.CustomerAppProfile;
@@ -32,8 +28,6 @@ public class UserSeeder {
     private final AccountAppProfileRepository accountAppProfileRepository;
     private final CustomerAppProfileRepository customerAppProfileRepository;
     private final PersonaWidgetRepository personaWidgetRepository;
-    private final LocationRepository locationRepository;
-    private final LocationTypeRepository locationTypeRepository;
 
     // @Bean
     @Profile("seed")
@@ -332,79 +326,6 @@ public class UserSeeder {
                 log.info("Persona widgets already exist, skipping...");
             }
 
-            // Seed Locations
-            log.info("Seeding locations...");
-            if (locationRepository.count() == 0) {
-                // First create a LocationType if not exists
-                LocationType branchType = locationTypeRepository
-                        .findByCode("BRANCH")
-                        .orElseGet(() -> {
-                            LocationType newType = new LocationType();
-                            newType.setCode("BRANCH");
-                            newType.setName(createMultilingualContent("Branch", "សាខា", "分行"));
-                            newType.setDescription("Bank branch location");
-                            newType.setStatus(com.example.persona.enums.StatusType.ACTIVE);
-                            return locationTypeRepository.save(newType);
-                        });
-
-                List<Location> locations = Arrays.asList(
-                        createLocation(
-                                createMultilingualContent(
-                                        "Wing Bank Head Office", "ធនាគារ វីង (ខេមបូឌា) ភីអិលស៊ី សាខាកណ្តាល", "永银行总部"),
-                                createMultilingualContent(
-                                        "20F, Canadia Tower, Preah Monivong Blvd, Sangkat Wat Phnom, Khan Daun Penh, Phnom Penh",
-                                        "ជាន់ទី២០ អគារកាណាឌីយ៉ា មហាវិថីព្រះមុនីវង្ស សង្កាត់វត្តភ្នំ ខណ្ឌដូនពេញ រាជធានីភ្នំពេញ",
-                                        "金边市堆边区沃普农分区莫尼旺大道加拿大大厦20楼"),
-                                "head_office.jpg",
-                                "head_office_secondary.jpg",
-                                11.571394,
-                                104.923535,
-                                branchType),
-                        createLocation(
-                                createMultilingualContent(
-                                        "Wing Bank Toul Kork Branch", "ធនាគារ វីង សាខាទួលគោក", "永银行堆谷分行"),
-                                createMultilingualContent(
-                                        "#11, Street 289, Sangkat Boeung Kak I, Khan Toul Kork, Phnom Penh",
-                                        "អគារលេខ១១ ផ្លូវ២៨៩ សង្កាត់បឹងកក់១ ខណ្ឌទួលគោក រាជធានីភ្នំពេញ",
-                                        "金边市堆谷区布卡1分区289街11号"),
-                                "toul_kork.jpg",
-                                "toul_kork_secondary.jpg",
-                                11.578890,
-                                104.912570,
-                                branchType),
-                        createLocation(
-                                createMultilingualContent(
-                                        "Wing Bank Siem Reap Branch", "ធនាគារ វីង សាខាសៀមរាប", "永银行暹粒分行"),
-                                createMultilingualContent(
-                                        "National Road 6, Chong Kaosou Village, Slor Kram Commune, Siem Reap",
-                                        "ផ្លូវជាតិលេខ៦ ភូមិចុងកៅស៊ូ ឃុំស្លក្រាម ក្រុងសៀមរាប ខេត្តសៀមរាប",
-                                        "暹粒市斯洛克拉姆市政区琼高苏村6号国道"),
-                                "siem_reap.jpg",
-                                "siem_reap_secondary.jpg",
-                                13.364470,
-                                103.860313,
-                                branchType));
-
-                int locationCount = 0;
-                for (Location location : locations) {
-                    try {
-                        locationRepository.save(location);
-                        log.info(
-                                "Seeded location: {} ({}, {})",
-                                location.getName().getEn(),
-                                location.getLatitude(),
-                                location.getLongitude());
-                        locationCount++;
-                    } catch (Exception e) {
-                        log.error(
-                                "Error seeding location: {}", location.getName().getEn(), e);
-                    }
-                }
-                log.info("Completed seeding {} locations", locationCount);
-            } else {
-                log.info("Locations already exist, skipping...");
-            }
-
             log.info("User data seeding completed successfully!");
         };
     }
@@ -550,27 +471,6 @@ public class UserSeeder {
                 param4Value,
                 param5Key,
                 param5Value);
-    }
-
-    private Location createLocation(
-            MultilingualContent name,
-            MultilingualContent address,
-            String imageUrl,
-            String secondaryImageUrl,
-            double latitude,
-            double longitude,
-            LocationType locationType) {
-
-        Location location = new Location();
-        location.setName(name);
-        location.setAddress(address);
-        location.setImageUrl(imageUrl);
-        location.setSecondaryImageUrl(secondaryImageUrl);
-        location.setLatitude(latitude);
-        location.setLongitude(longitude);
-        location.setLocationType(locationType);
-        location.setStatus(com.example.persona.enums.StatusType.ACTIVE);
-        return location;
     }
 
     private MultilingualContent createMultilingualContent(String en, String km, String zh) {

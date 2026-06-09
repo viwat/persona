@@ -1,417 +1,449 @@
 package com.example.persona.location.service;
 
-import com.example.persona.enums.StatusType;
-import com.example.persona.exception.BusinessException;
-import com.example.persona.location.dto.request.LocationAvailableCreateRequest;
-import com.example.persona.location.dto.request.LocationCreateRequest;
-import com.example.persona.location.dto.request.LocationDetailCreateRequest;
-import com.example.persona.location.dto.request.LocationModifyRequest;
-import com.example.persona.location.dto.request.LocationOperatingHourCreateRequest;
-import com.example.persona.location.dto.request.LocationOperatingHourModifyRequest;
-import com.example.persona.location.dto.request.LocationTypeCreateRequest;
-import com.example.persona.location.dto.response.LocationAvailableServiceResponse;
-import com.example.persona.location.dto.response.LocationOperatingHourResponse;
-import com.example.persona.location.dto.response.LocationResponse;
-import com.example.persona.location.dto.response.LocationTypeResponse;
+import com.example.persona.location.dto.request.LocationRequest;
+import com.example.persona.location.entity.LocationEntity;
+import com.example.persona.location.exception.LocationDuplicateException;
+import com.example.persona.location.exception.LocationNotFoundException;
+import com.example.persona.location.mapper.GoogleMapsUrlParser;
+import com.example.persona.location.mapper.LocationEntityMapper;
+import com.example.persona.location.model.Address;
+import com.example.persona.location.model.AuditAction;
+import com.example.persona.location.model.AuditEvent;
+import com.example.persona.location.model.ContactInfo;
+import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
-import com.example.persona.location.model.LocationAvailableService;
-import com.example.persona.location.model.LocationOperatingHour;
+import com.example.persona.location.model.LocationStatus;
 import com.example.persona.location.model.LocationType;
-import com.example.persona.location.repository.LocationAvailableServiceRepository;
-import com.example.persona.location.repository.LocationOperatingHourRepository;
-import com.example.persona.location.repository.LocationRepository;
-import com.example.persona.location.repository.LocationTypeRepository;
-import com.example.persona.model.MultilingualContent;
-import com.example.persona.search.dto.PaginatedResult;
-import com.example.persona.search.dto.request.LocationSearch;
-import com.example.persona.search.service.LocationSearchService;
-import com.example.persona.utils.DateTimeUtils;
-import com.example.persona.utils.LocationUtils;
-import jakarta.validation.ConstraintViolationException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.example.persona.location.model.OpeningHours;
+import com.example.persona.location.repository.LocationJpaRepository;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.jspecify.annotations.NonNull;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class LocationService {
-    private final LocationRepository locationRepository;
-    private final LocationTypeRepository locationTypeRepository;
-    private final LocationOperatingHourRepository locationOperatingHourRepository;
-    private final LocationAvailableServiceRepository locationAvailableServiceRepository;
 
-    private final LocationSearchService locationSearchService;
+    private static final double KM_PER_DEGREE_LAT = 111.32;
+    private static final double METERS_PER_KM = 1000.0;
 
-    @Transactional
-    public LocationResponse createLocation(LocationCreateRequest request) {
-        LocationType type = locationTypeRepository
-                .findById(request.getLocationTypeId())
-                .orElseThrow(
-                        () -> new BusinessException("LocationType Id " + request.getLocationTypeId() + " not found"));
-        Location location = buildLocation(request, type);
-        location = locationRepository.save(location);
-        locationSearchService.addLocation(LocationSearch.fromEntity(location));
-        return LocationResponse.fromEntity(null, null, location);
-    }
+    private final LocationJpaRepository jpaRepository;
+    private final LocationEntityMapper entityMapper;
+    private final LocationSearchService searchService;
+    private final LocationCacheService cacheService;
+    private final AuditService auditService;
+    private final MeterRegistry meterRegistry;
+    private final ObjectMapper objectMapper;
 
-    @Transactional
-    public LocationResponse modifyLocation(Long locationId, LocationModifyRequest request) {
-        try {
-            Location location = locationRepository
-                    .findById(locationId)
-                    .orElseThrow(() -> new BusinessException("Location Id " + locationId + " not found"));
-            location.setName(buildMultilingualContent(request.getNameEn(), request.getNameKm(), request.getNameZh()));
-            location.setAddress(
-                    buildMultilingualContent(request.getAddressEn(), request.getAddressKm(), request.getAddressZh()));
-            location.setLatitude(request.getLatitude());
-            location.setLongitude(request.getLongitude());
-            location.setImageUrl(request.getImageUrl());
-            location.setSecondaryImageUrl(request.getSecondaryImageUrl());
-            location.setStatus(request.getStatus() == null ? StatusType.ACTIVE : request.getStatus());
-            location = locationRepository.save(location);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationResponse.fromEntity(null, null, location);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
+    // ── Result types ─────────────────────────────────────────────────────────
+
+    public record SearchResult(List<Location> locations, long totalHits, int page, int size) {}
+
+    public record NearbyResult(Location location, double distanceKm) {}
+
+    // ── Commands ─────────────────────────────────────────────────────────────
+
+    @Timed(value = "location.command.create")
+    public Location create(LocationRequest.CreateLocationRequest request, String actor) {
+        log.info("Creating location: name={}, type={}, actor={}", request.name(), request.type(), actor);
+
+        if (jpaRepository.existsByNameIgnoreCase(request.name())) {
+            throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
+
+        Coordinate coordinate = resolveCoordinate(request.coordinate(), request.contactInfo());
+        Location location = Location.create(
+                request.name(),
+                request.type(),
+                coordinate,
+                toAddress(request.address()),
+                request.contactInfo() != null ? toContactInfo(request.contactInfo()) : null,
+                request.openingHours() != null ? toOpeningHours(request.openingHours()) : null,
+                request.availableServices(),
+                request.logoUrl(),
+                request.coverUrl(),
+                actor);
+
+        Location saved = persist(location);
+        indexAndCache(saved);
+        audit(saved, AuditAction.CREATED, actor);
+        log.info("Location created: id={}", saved.getId());
+        return saved;
     }
 
-    @Transactional
-    public LocationResponse modifyLocationStatus(Long locationId, StatusType status) {
-        try {
-            Location location = locationRepository
-                    .findById(locationId)
-                    .orElseThrow(() -> new BusinessException("Location Id " + locationId + " not found"));
-            location.setStatus(status);
-            location = locationRepository.save(location);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationResponse.fromEntity(null, null, location);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
+    @Timed(value = "location.command.update")
+    public Location update(UUID id, LocationRequest.UpdateLocationRequest request, String actor) {
+        log.info("Updating location: id={}, actor={}", id, actor);
+
+        Location existing = findOrThrow(id);
+
+        if (request.name() != null
+                && !request.name().equalsIgnoreCase(existing.getName())
+                && jpaRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
+            throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
+
+        Coordinate coordinate = request.coordinate() != null ? toCoordinate(request.coordinate()) : null;
+        Location updated = existing.update(
+                request.name(),
+                coordinate,
+                request.address() != null ? toAddress(request.address()) : null,
+                request.contactInfo() != null ? toContactInfo(request.contactInfo()) : null,
+                request.openingHours() != null ? toOpeningHours(request.openingHours()) : null,
+                request.availableServices(),
+                request.logoUrl(),
+                request.coverUrl(),
+                actor);
+
+        Location saved = persist(updated);
+        indexAndCache(saved);
+        audit(saved, AuditAction.UPDATED, actor);
+        log.info("Location updated: id={}", saved.getId());
+        return saved;
     }
 
-    @Transactional
-    public LocationResponse createLocationWithDetail(LocationDetailCreateRequest request) {
-        // Fetch LocationType
-        LocationType type = locationTypeRepository
-                .findById(request.getLocationTypeId())
-                .filter(lt -> lt.getStatus() == StatusType.ACTIVE)
-                .orElseThrow(() -> new BusinessException(
-                        "LocationType Id " + request.getLocationTypeId() + " not found or not active"));
+    @Timed(value = "location.command.delete")
+    public void delete(UUID id, String actor) {
+        log.info("Deleting location: id={}, actor={}", id, actor);
+        if (!jpaRepository.existsById(id)) throw new LocationNotFoundException(id);
 
-        // Create Location
-        Location location = new Location();
+        String snapshot = jpaRepository
+                .findById(id)
+                .map(e -> toJson(entityMapper.toDomain(e)))
+                .orElse(null);
 
-        location.setName(buildMultilingualContent(request.getNameEn(), request.getNameKm(), request.getNameZh()));
-        location.setAddress(
-                buildMultilingualContent(request.getAddressEn(), request.getAddressKm(), request.getAddressZh()));
-
-        location.setLatitude(request.getLatitude());
-        location.setLongitude(request.getLongitude());
-        location.setImageUrl(request.getImageUrl());
-        location.setSecondaryImageUrl(request.getSecondaryImageUrl());
-        location.setLocationType(type);
-        location.setStatus(StatusType.ACTIVE);
-        location.setCreatedBy(request.getCreatedBy());
-
-        // Save location first
-        locationRepository.save(location);
-
-        // Prepare Operating Hours for batch save
-        List<LocationOperatingHour> hours = request.getLocationOperatingHours().stream()
-                .map(hourRequest -> buildLocationOperatingHour(hourRequest, location))
-                .toList();
-        locationOperatingHourRepository.saveAll(hours);
-
-        List<LocationAvailableService> services = request.getLocationAvailableServices().stream()
-                .map(serviceRequest -> buildLocationAvailableService(serviceRequest, location))
-                .toList();
-        locationAvailableServiceRepository.saveAll(services);
-
-        location.setOperatingHours(hours);
-        location.setAvailableServices(services);
-
-        return LocationResponse.fromEntity(null, null, location);
+        jpaRepository.deleteById(id);
+        searchService.delete(id);
+        cacheService.evictById(id);
+        cacheService.evictAll();
+        auditService.record(AuditEvent.of(id, AuditAction.DELETED, actor, snapshot));
+        log.info("Location deleted: id={}", id);
     }
 
-    public LocationTypeResponse createLocationType(LocationTypeCreateRequest request) {
-        LocationType type = new LocationType();
-
-        type.setCode(request.getCode());
-
-        MultilingualContent name = new MultilingualContent();
-        name.setEn(request.getNameEn());
-        name.setKm(request.getNameKm());
-        name.setZh(request.getNameZh());
-        type.setName(name);
-
-        type.setDescription(request.getDescription());
-        type.setIconUrl(request.getIconUrl());
-        type.setDefaultImageUrl(request.getDefaultImageUrl());
-        type.setStatus(StatusType.ACTIVE);
-
-        type = locationTypeRepository.save(type);
-
-        return LocationTypeResponse.fromEntity(type);
+    @Timed(value = "location.command.activate")
+    public Location activate(UUID id, String actor) {
+        Location saved = persist(findOrThrow(id).activate(actor));
+        indexAndCache(saved);
+        audit(saved, AuditAction.ACTIVATED, actor);
+        log.info("Location activated: id={}", id);
+        return saved;
     }
 
-    public LocationAvailableServiceResponse createLocationAvailable(
-            Long locationId, LocationAvailableCreateRequest request) {
-        try {
-            Location location = locationRepository
-                    .findById(locationId)
-                    .filter(lt -> lt.getStatus() == StatusType.ACTIVE)
-                    .orElseThrow(() -> new BusinessException("Location not found or not active"));
-            LocationAvailableService service = new LocationAvailableService();
-            service.setCode(request.getCode());
-            MultilingualContent name = new MultilingualContent();
-            name.setEn(request.getNameEn());
-            name.setKm(request.getNameKm());
-            name.setZh(request.getNameZh());
-            service.setName(name);
-            service.setIconUrl(request.getIconUrl());
-            service.setLocation(location);
-            service.setStatus(StatusType.ACTIVE);
-            service = locationAvailableServiceRepository.save(service);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationAvailableServiceResponse.fromEntity(service);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
-        }
+    @Timed(value = "location.command.deactivate")
+    public Location deactivate(UUID id, String actor) {
+        Location saved = persist(findOrThrow(id).deactivate(actor));
+        searchService.delete(id);
+        cacheService.evictById(id);
+        cacheService.evictAll();
+        audit(saved, AuditAction.DEACTIVATED, actor);
+        log.info("Location deactivated: id={}", id);
+        return saved;
     }
 
-    public LocationOperatingHourResponse createLocationOperatingHour(
-            Long locationId, LocationOperatingHourCreateRequest request) {
-        try {
-            Location location = locationRepository
-                    .findById(locationId)
-                    .filter(lt -> lt.getStatus() == StatusType.ACTIVE)
-                    .orElseThrow(() -> new BusinessException("Location not found or not active"));
-            LocationOperatingHour operatingHour = buildLocationOperatingHour(request, location);
-            operatingHour = locationOperatingHourRepository.save(operatingHour);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationOperatingHourResponse.fromEntity(operatingHour);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
-        }
+    @Timed(value = "location.command.closeTemporarily")
+    public Location closeTemporarily(UUID id, Instant closedUntil, String actor) {
+        log.info("Temporarily closing location: id={}, until={}, actor={}", id, closedUntil, actor);
+        Location saved = persist(findOrThrow(id).closeTemporarily(closedUntil, actor));
+        indexAndCache(saved);
+        audit(saved, AuditAction.CLOSED_TEMPORARILY, actor);
+        return saved;
     }
 
-    public LocationOperatingHourResponse modifyLocationOperatingHour(
-            Long locationId, Long operatingHourId, LocationOperatingHourModifyRequest request) {
-        try {
-            LocationOperatingHour operatingHour = locationOperatingHourRepository
-                    .findByIdAndLocationId(operatingHourId, locationId)
-                    .orElseThrow(() -> new BusinessException("OperatingHour with ID and Location ID is not found"));
-            operatingHour.setDayOfWeek(request.getDayOfWeek());
-            operatingHour.setOpenTime(DateTimeUtils.parse(request.getOpenTime()));
-            operatingHour.setCloseTime(DateTimeUtils.parse(request.getCloseTime()));
-            operatingHour.setSecondOpenTime(DateTimeUtils.parse(request.getSecondOpenTime()));
-            operatingHour.setSecondCloseTime(DateTimeUtils.parse(request.getSecondCloseTime()));
-            operatingHour.setClosed(request.getClosed());
-            operatingHour = locationOperatingHourRepository.save(operatingHour);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(operatingHour.getLocation()));
-            return LocationOperatingHourResponse.fromEntity(operatingHour);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
-        }
+    @Timed(value = "location.command.reopen")
+    public Location reopen(UUID id, String actor) {
+        log.info("Reopening location: id={}, actor={}", id, actor);
+        Location saved = persist(findOrThrow(id).reopen(actor));
+        indexAndCache(saved);
+        audit(saved, AuditAction.REOPENED, actor);
+        return saved;
     }
 
-    @Transactional
-    public LocationAvailableServiceResponse deleteLocationAvailableService(Long locationId, Long operatingHourId) {
-        try {
-            LocationAvailableService availableService = locationAvailableServiceRepository
-                    .findByIdAndLocationId(operatingHourId, locationId)
-                    .orElseThrow(() -> new BusinessException("OperatingHour with ID and Location ID is not found"));
-            Location location = availableService.getLocation();
-            location.getAvailableServices().remove(availableService);
-            locationAvailableServiceRepository.delete(availableService);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationAvailableServiceResponse.fromEntity(availableService);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
-        }
-    }
-
-    @Transactional
-    public LocationOperatingHourResponse deleteLocationOperatingHour(Long locationId, Long operatingHourId) {
-        try {
-            LocationOperatingHour operatingHour = locationOperatingHourRepository
-                    .findByIdAndLocationId(operatingHourId, locationId)
-                    .orElseThrow(() -> new BusinessException("OperatingHour with ID and Location ID is not found"));
-            Location location = operatingHour.getLocation();
-            location.getOperatingHours().remove(operatingHour);
-            locationOperatingHourRepository.delete(operatingHour);
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-            return LocationOperatingHourResponse.fromEntity(operatingHour);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException(e.getMessage());
-        }
-    }
-
-    @Transactional
-    public List<LocationOperatingHourResponse> createLocationOperatingHours(
-            Long locationId, List<LocationOperatingHourCreateRequest> requests) {
-        try {
-            List<LocationOperatingHour> operatingHours = new ArrayList<>();
-            Map<Long, Location> locationCache = new HashMap<>();
-            for (LocationOperatingHourCreateRequest request : requests) {
-                Location location = locationCache.computeIfAbsent(locationId, id -> locationRepository
-                        .findById(id)
-                        .filter(lt -> lt.getStatus() == StatusType.ACTIVE)
-                        .orElseThrow(
-                                () -> new BusinessException("Location not found with id: " + id + " or not active")));
-                LocationOperatingHour operatingHour = buildLocationOperatingHour(request, location);
-                operatingHours.add(operatingHour);
-            }
-            operatingHours = locationOperatingHourRepository.saveAll(operatingHours);
-            operatingHours.forEach(operatingHour ->
-                    locationSearchService.modifyLocation(LocationSearch.fromEntity(operatingHour.getLocation())));
-            return LocationOperatingHourResponse.fromEntities(operatingHours);
-        } catch (DataIntegrityViolationException | ConstraintViolationException e) {
-            throw new BusinessException("Error database constraints: " + e.getMessage());
-        } catch (Exception e) {
-            throw new BusinessException(e.getMessage());
-        }
-    }
+    // ── Queries ──────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public LocationResponse findLocationById(Long locationId) {
-        LocationResponse response = locationSearchService.searchLocationById(locationId);
-        if (response == null) {
-            Location location = locationRepository
-                    .findById(locationId)
-                    .orElseThrow(() -> new BusinessException("Location not found with id: " + locationId));
-            return LocationResponse.fromEntity(null, null, location);
+    @Timed(value = "location.query.findById")
+    public Optional<Location> findById(UUID id) {
+        Optional<Location> cached = cacheService.getById(id);
+        if (cached.isPresent()) {
+            meterRegistry.counter("location.cache.hit", "operation", "findById").increment();
+            return cached;
         }
-        return response;
-    }
-
-    @Transactional(readOnly = true)
-    public PaginatedResult<LocationResponse> findLocationsNearby(
-            String locationType, double latitude, double longitude, double radiusKm, Pageable pageable) {
-        log.info(
-                "Finding nearby locations of location type {} within {}km of ({}, {})",
-                locationType,
-                radiusKm,
-                latitude,
-                longitude);
-        PaginatedResult<LocationResponse> result = locationSearchService.searchLocationsNearby(
-                latitude, longitude, radiusKm * 1000, locationType, pageable);
-        if (result == null) {
-            log.info("Fallback to query nearby locations from DB");
-            double latDistance = radiusKm / LocationUtils.EARTH_RADIUS_KM * (180.0 / Math.PI);
-            double lngDistance =
-                    radiusKm / (LocationUtils.EARTH_RADIUS_KM * Math.cos(Math.toRadians(latitude))) * (180.0 / Math.PI);
-            double minLat = latitude - latDistance;
-            double maxLat = latitude + latDistance;
-            double minLng = longitude - lngDistance;
-            double maxLng = longitude + lngDistance;
-            Page<@NonNull Location> locationPage = locationRepository.findNearbyLocations(
-                    locationType,
-                    latitude,
-                    longitude,
-                    radiusKm,
-                    minLat,
-                    maxLat,
-                    minLng,
-                    maxLng,
-                    LocationUtils.EARTH_RADIUS_KM,
-                    pageable);
-            List<LocationResponse> responses =
-                    LocationResponse.fromEntities(latitude, longitude, locationPage.getContent());
-            return PaginatedResult.of(
-                    locationPage.getNumber(),
-                    locationPage.getSize(),
-                    locationPage.getTotalElements(),
-                    locationPage.getTotalPages(),
-                    responses);
-        }
-        return result;
-    }
-
-    @Async
-    @Transactional(readOnly = true)
-    public void reloadMeilisearch() {
-        locationSearchService.clearAllLocations();
-        locationRepository.findAll().forEach(location -> {
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
+        meterRegistry.counter("location.cache.miss", "operation", "findById").increment();
+        Optional<Location> location = jpaRepository.findById(id).map(entityMapper::toDomain);
+        location.ifPresent(loc -> {
+            cacheService.putById(loc);
+            log.debug("Location {} loaded from DB and cached", id);
         });
-    }
-
-    @Async
-    @Transactional(readOnly = true)
-    public void reloadMeilisearchByLocationId(Long locationId) {
-        locationRepository.findById(locationId).ifPresent(loc -> {
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(loc));
-        });
-    }
-
-    @Async
-    @Transactional(readOnly = true)
-    public void reloadMeilisearchByLocationTypeId(Long locationTypeId) {
-        locationRepository.findByLocationTypeId(locationTypeId).forEach(location -> {
-            locationSearchService.modifyLocation(LocationSearch.fromEntity(location));
-        });
-    }
-
-    private MultilingualContent buildMultilingualContent(String en, String km, String zh) {
-        MultilingualContent content = new MultilingualContent();
-        content.setEn(en);
-        content.setKm(km);
-        content.setZh(zh);
-        return content;
-    }
-
-    private Location buildLocation(LocationCreateRequest request, LocationType type) {
-        Location location = new Location();
-        location.setName(buildMultilingualContent(request.getNameEn(), request.getNameKm(), request.getNameZh()));
-        location.setAddress(
-                buildMultilingualContent(request.getAddressEn(), request.getAddressKm(), request.getAddressZh()));
-        location.setLatitude(request.getLatitude());
-        location.setLongitude(request.getLongitude());
-        location.setImageUrl(request.getImageUrl());
-        location.setSecondaryImageUrl(request.getSecondaryImageUrl());
-        location.setLocationType(type);
-        location.setStatus(StatusType.ACTIVE);
-        location.setCreatedBy(request.getCreatedBy());
         return location;
     }
 
-    @NotNull
-    private LocationOperatingHour buildLocationOperatingHour(
-            LocationOperatingHourCreateRequest request, Location location) {
-        LocationOperatingHour operatingHour = new LocationOperatingHour();
-        operatingHour.setLocation(location);
-        operatingHour.setDayOfWeek(request.getDayOfWeek());
-        operatingHour.setOpenTime(DateTimeUtils.parse(request.getOpenTime()));
-        operatingHour.setCloseTime(DateTimeUtils.parse(request.getCloseTime()));
-        operatingHour.setSecondOpenTime(DateTimeUtils.parse(request.getSecondOpenTime()));
-        operatingHour.setSecondCloseTime(DateTimeUtils.parse(request.getSecondCloseTime()));
-        operatingHour.setClosed(request.getClosed());
-        return operatingHour;
+    @Transactional(readOnly = true)
+    @Timed(value = "location.query.browse")
+    public SearchResult browse(List<LocationType> types, int page, int size) {
+        List<LocationType> effective =
+                (types == null || types.isEmpty()) ? Arrays.asList(LocationType.values()) : types;
+        List<String> codes = effective.stream().map(LocationType::getCode).collect(Collectors.toList());
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        Page<LocationEntity> result =
+                jpaRepository.findByTypeInAndStatus(codes, LocationStatus.ACTIVE.name(), pageable);
+        List<Location> content =
+                result.getContent().stream().map(entityMapper::toDomain).toList();
+        return new SearchResult(content, result.getTotalElements(), page, size);
     }
 
-    private LocationAvailableService buildLocationAvailableService(
-            LocationAvailableCreateRequest request, Location location) {
-        LocationAvailableService service = new LocationAvailableService();
-        service.setCode(request.getCode());
-        service.setName(buildMultilingualContent(request.getNameEn(), request.getNameKm(), request.getNameZh()));
-        service.setIconUrl(request.getIconUrl());
-        service.setLocation(location);
-        service.setStatus(StatusType.ACTIVE);
-        return service;
+    @Transactional(readOnly = true)
+    @Timed(value = "location.query.findAll")
+    public List<Location> findAll(List<LocationType> types) {
+        List<LocationType> effective =
+                (types == null || types.isEmpty()) ? Arrays.asList(LocationType.values()) : types;
+        Optional<List<Location>> cached = cacheService.getAllByTypes(effective);
+        if (cached.isPresent()) {
+            meterRegistry.counter("location.cache.hit", "operation", "findAll").increment();
+            return cached.get();
+        }
+        meterRegistry.counter("location.cache.miss", "operation", "findAll").increment();
+        List<String> codes = effective.stream().map(LocationType::getCode).collect(Collectors.toList());
+        List<Location> locations = jpaRepository.findByTypeInAndStatus(codes, LocationStatus.ACTIVE.name()).stream()
+                .map(entityMapper::toDomain)
+                .collect(Collectors.toList());
+        cacheService.putAllByTypes(effective, locations);
+        return locations;
+    }
+
+    @Transactional(readOnly = true)
+    @Timed(value = "location.query.search")
+    public SearchResult search(
+            String text,
+            List<LocationType> types,
+            String province,
+            String district,
+            String commune,
+            int page,
+            int size) {
+        try {
+            LocationSearchService.SearchIndexResult indexResult =
+                    searchService.search(text, types, province, district, commune, page * size, size);
+            if (indexResult.locationIds().isEmpty()) return new SearchResult(Collections.emptyList(), 0, page, size);
+            List<Location> locations = indexResult.locationIds().stream()
+                    .map(id -> findById(id).orElse(null))
+                    .filter(Objects::nonNull)
+                    .toList();
+            meterRegistry.counter("location.search.meilisearch").increment();
+            return new SearchResult(locations, indexResult.totalHits(), page, size);
+        } catch (Exception e) {
+            log.warn("Meilisearch unavailable, falling back to PostgreSQL: {}", e.getMessage());
+            meterRegistry.counter("location.search.fallback").increment();
+            return searchFallback(text, types, province, district, commune, page, size);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    @Timed(value = "location.query.nearby")
+    public List<NearbyResult> findNearby(Coordinate center, double radiusKm, List<LocationType> types, int limit) {
+        try {
+            List<LocationSearchService.NearbyIndexResult> indexResults =
+                    searchService.findNearby(center, radiusKm, types, limit);
+            List<NearbyResult> results = indexResults.stream()
+                    .map(r -> findById(r.locationId())
+                            .map(loc -> new NearbyResult(loc, loc.distanceTo(center)))
+                            .orElse(null))
+                    .filter(Objects::nonNull)
+                    .toList();
+            meterRegistry.counter("location.nearby.meilisearch").increment();
+            return results;
+        } catch (Exception e) {
+            log.warn("Meilisearch unavailable for nearby search, falling back to PostgreSQL: {}", e.getMessage());
+            meterRegistry.counter("location.nearby.fallback").increment();
+            return findNearbyFallback(center, radiusKm, types, limit);
+        }
+    }
+
+    public boolean existsById(UUID id) {
+        return jpaRepository.existsById(id);
+    }
+
+    // ── Private — persistence ─────────────────────────────────────────────────
+
+    private Location persist(Location location) {
+        if (location.getId() != null) {
+            Optional<LocationEntity> managed = jpaRepository.findById(location.getId());
+            if (managed.isPresent()) {
+                entityMapper.updateEntity(managed.get(), location);
+                return entityMapper.toDomain(jpaRepository.save(managed.get()));
+            }
+        }
+        return entityMapper.toDomain(jpaRepository.save(entityMapper.toEntity(location)));
+    }
+
+    private Location findOrThrow(UUID id) {
+        return jpaRepository
+                .findById(id)
+                .map(entityMapper::toDomain)
+                .orElseThrow(() -> new LocationNotFoundException(id));
+    }
+
+    // ── Private — search fallback ─────────────────────────────────────────────
+
+    private SearchResult searchFallback(
+            String text,
+            List<LocationType> types,
+            String province,
+            String district,
+            String commune,
+            int page,
+            int size) {
+        String typesArray = toPostgresArray(types);
+        int offset = page * size;
+        List<Location> locations = jpaRepository
+                .fullTextSearch(
+                        emptyToNull(text),
+                        typesArray,
+                        emptyToNull(province),
+                        emptyToNull(district),
+                        emptyToNull(commune),
+                        offset,
+                        size)
+                .stream()
+                .map(entityMapper::toDomain)
+                .collect(Collectors.toList());
+        long total = jpaRepository.countFullTextSearch(
+                emptyToNull(text), typesArray, emptyToNull(province), emptyToNull(district), emptyToNull(commune));
+        return new SearchResult(locations, total, page, size);
+    }
+
+    private List<NearbyResult> findNearbyFallback(
+            Coordinate center, double radiusKm, List<LocationType> types, int limit) {
+        String typesArray = toPostgresArray(types);
+        double radiusMeters = radiusKm * METERS_PER_KM;
+        double deltaLat = radiusKm / KM_PER_DEGREE_LAT;
+        double deltaLon = radiusKm / (KM_PER_DEGREE_LAT * Math.cos(Math.toRadians(center.getLatitude())));
+
+        List<Object[]> rows = jpaRepository.findNearbyRaw(
+                center.getLatitude(),
+                center.getLongitude(),
+                center.getLatitude() - deltaLat,
+                center.getLatitude() + deltaLat,
+                center.getLongitude() - deltaLon,
+                center.getLongitude() + deltaLon,
+                radiusMeters,
+                typesArray,
+                limit);
+
+        if (rows.isEmpty()) return List.of();
+
+        List<UUID> ids = rows.stream().map(row -> (UUID) row[0]).collect(Collectors.toList());
+        Map<UUID, Double> distByIdMeters = rows.stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> ((Number) row[row.length - 1]).doubleValue()));
+
+        Map<UUID, LocationEntity> entityById =
+                jpaRepository.findAllById(ids).stream().collect(Collectors.toMap(LocationEntity::getId, e -> e));
+
+        return ids.stream()
+                .map(entityById::get)
+                .filter(Objects::nonNull)
+                .map(e -> new NearbyResult(entityMapper.toDomain(e), distByIdMeters.get(e.getId()) / METERS_PER_KM))
+                .collect(Collectors.toList());
+    }
+
+    // ── Private — side effects ────────────────────────────────────────────────
+
+    private void indexAndCache(Location location) {
+        try {
+            searchService.index(location);
+        } catch (Exception e) {
+            log.warn("Failed to index location {} in Meilisearch: {}", location.getId(), e.getMessage());
+        }
+        cacheService.putById(location);
+        cacheService.evictAll();
+    }
+
+    private void audit(Location location, AuditAction action, String actor) {
+        auditService.record(AuditEvent.of(location.getId(), action, actor, toJson(location)));
+    }
+
+    private String toJson(Location location) {
+        try {
+            return objectMapper.writeValueAsString(location);
+        } catch (JacksonException e) {
+            log.warn("Failed to serialize location snapshot: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // ── Private — DTO mapping ─────────────────────────────────────────────────
+
+    private Coordinate resolveCoordinate(
+            LocationRequest.CoordinateDto dto, LocationRequest.ContactInfoDto contactInfo) {
+        if (dto != null) return toCoordinate(dto);
+        if (contactInfo != null && contactInfo.googleMapsUrl() != null) {
+            return GoogleMapsUrlParser.parse(contactInfo.googleMapsUrl())
+                    .map(ll -> new Coordinate(ll.latitude(), ll.longitude()))
+                    .orElse(null);
+        }
+        return null;
+    }
+
+    private Coordinate toCoordinate(LocationRequest.CoordinateDto dto) {
+        return new Coordinate(dto.latitude(), dto.longitude());
+    }
+
+    private Address toAddress(LocationRequest.AddressDto dto) {
+        return Address.builder()
+                .street(dto.street())
+                .commune(dto.commune())
+                .district(dto.district())
+                .province(dto.province())
+                .country(dto.country())
+                .build();
+    }
+
+    private ContactInfo toContactInfo(LocationRequest.ContactInfoDto dto) {
+        return ContactInfo.builder()
+                .phone(dto.phone())
+                .email(dto.email())
+                .website(dto.website())
+                .googleMapsUrl(dto.googleMapsUrl())
+                .build();
+    }
+
+    private OpeningHours toOpeningHours(LocationRequest.OpeningHoursDto dto) {
+        if (dto.schedule() == null)
+            return OpeningHours.builder().specialNotes(dto.specialNotes()).build();
+        Map<DayOfWeek, OpeningHours.DaySchedule> schedule = new LinkedHashMap<>();
+        dto.schedule()
+                .forEach((day, ds) -> schedule.put(
+                        day,
+                        OpeningHours.DaySchedule.builder()
+                                .openTime(LocalTime.parse(ds.openTime()))
+                                .closeTime(LocalTime.parse(ds.closeTime()))
+                                .build()));
+        return OpeningHours.builder()
+                .schedule(schedule)
+                .specialNotes(dto.specialNotes())
+                .build();
+    }
+
+    private String toPostgresArray(List<LocationType> types) {
+        if (types == null || types.isEmpty()) return null;
+        return types.stream().map(LocationType::getCode).collect(Collectors.joining(",", "{", "}"));
+    }
+
+    private String emptyToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }

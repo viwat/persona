@@ -1,9 +1,5 @@
 package com.example.persona.search.repository;
 
-import com.meilisearch.sdk.Client;
-import com.meilisearch.sdk.Index;
-import com.meilisearch.sdk.SearchRequest;
-import com.meilisearch.sdk.model.SearchResultPaginated;
 import com.example.persona.search.dto.LocationSearchResult;
 import com.example.persona.search.dto.PaginatedResult;
 import com.example.persona.search.dto.PeopleSearchResult;
@@ -11,6 +7,10 @@ import com.example.persona.search.dto.SearchCriteria;
 import com.example.persona.search.dto.ServiceSearchResult;
 import com.example.persona.search.dto.TransactionSearchResult;
 import com.example.persona.search.queries.PropertyQueryBuilder;
+import com.meilisearch.sdk.Client;
+import com.meilisearch.sdk.Index;
+import com.meilisearch.sdk.SearchRequest;
+import com.meilisearch.sdk.model.SearchResultPaginated;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;

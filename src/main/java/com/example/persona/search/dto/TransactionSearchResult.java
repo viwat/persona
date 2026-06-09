@@ -1,11 +1,11 @@
 package com.example.persona.search.dto;
 
+import com.example.persona.search.dto.request.GeoLocation;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.example.persona.search.dto.request.GeoLocation;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;

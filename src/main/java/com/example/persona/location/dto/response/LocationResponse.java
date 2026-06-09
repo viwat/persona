@@ -1,125 +1,97 @@
 package com.example.persona.location.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.location.model.Location;
-import com.example.persona.utils.DateTimeUtils;
-import com.example.persona.utils.LanguageUtils;
-import com.example.persona.utils.LocationUtils;
-import java.util.Collections;
+import com.example.persona.location.model.OpeningHours;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.Instant;
 import java.util.List;
-import lombok.AllArgsConstructor;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class LocationResponse {
-    @JsonProperty("location_id")
-    private Long locationId;
+public record LocationResponse(
+        UUID id,
+        String name,
+        String type,
+        String typeDisplayName,
+        String status,
+        String logoUrl,
+        String coverUrl,
+        OperatingStatusResponse operatingStatus,
+        CoordinateResponse coordinate,
+        AddressResponse address,
+        ContactInfoResponse contactInfo,
+        OpeningHoursResponse openingHours,
+        List<String> availableServices,
+        String createdBy,
+        String updatedBy,
+        Instant createdAt,
+        Instant updatedAt) {
 
-    @JsonProperty("profile_id")
-    private String profileId;
-
-    @JsonProperty("location_name")
-    private String locationName;
-
-    @JsonProperty("location_address")
-    private String locationAddress;
-
-    @JsonProperty("location_type_id")
-    private Long locationTypeId;
-
-    @JsonProperty("location_type_name")
-    private String locationTypeName;
-
-    @JsonProperty("location_type_status")
-    private String locationTypeStatus;
-
-    @JsonProperty("latitude")
-    private Double latitude;
-
-    @JsonProperty("longitude")
-    private Double longitude;
-
-    @JsonProperty("image_url")
-    private String imageUrl;
-
-    @JsonProperty("secondary_image_url")
-    private String secondaryImageUrl;
-
-    @JsonProperty("status")
-    private String status;
-
-    @JsonProperty("radius")
-    private String radius;
-
-    @JsonProperty("distance")
-    private String distance;
-
-    @JsonProperty("location_operating_hours")
-    private List<LocationOperatingHourResponse> locationOperatingHours;
-
-    @JsonProperty("location_available_services")
-    private List<LocationAvailableServiceResponse> locationAvailableServices;
-
-    @JsonProperty("formatted_operating_datetime")
-    private String formattedOperatingDateTime;
-
-    @JsonProperty("created_by")
-    private String createdBy;
-
-    @JsonProperty("created_date")
-    private String createdDate;
-
-    @JsonProperty("modified_by")
-    private String modifiedBy;
-
-    @JsonProperty("modified_date")
-    private String modifiedDate;
-
-    public static LocationResponse fromEntity(Double requestLat, Double requestLng, Location location) {
-        if (location == null || location.getLocationType() == null) {
-            return null;
-        }
-        Double distance = 0.0;
-        if (requestLat != null && requestLng != null) {
-            distance = LocationUtils.haversineDistanceKm(
-                    requestLat, requestLng, location.getLatitude(), location.getLongitude());
-        }
+    public static LocationResponse from(Location location) {
         return LocationResponse.builder()
-                .locationId(location.getId())
-                .locationName(LanguageUtils.getLocalizedText(location.getName()))
-                .locationAddress(LanguageUtils.getLocalizedText(location.getAddress()))
-                .latitude(location.getLatitude())
-                .longitude(location.getLongitude())
-                .imageUrl(location.getImageUrl())
-                .imageUrl(location.getImageUrl())
-                .secondaryImageUrl(location.getSecondaryImageUrl())
-                .locationTypeId(location.getLocationType().getId())
-                .locationTypeName(LanguageUtils.getLocalizedText(
-                        location.getLocationType().getName()))
+                .id(location.getId())
+                .name(location.getName())
+                .type(location.getType().getCode())
+                .typeDisplayName(location.getType().getDisplayName())
                 .status(location.getStatus().name())
-                .distance(String.valueOf(distance))
+                .logoUrl(location.getLogoUrl())
+                .coverUrl(location.getCoverUrl())
+                .operatingStatus(new OperatingStatusResponse(location.isTemporarilyClosed(), location.getClosedUntil()))
+                .coordinate(CoordinateResponse.from(location))
+                .address(AddressResponse.from(location))
+                .contactInfo(location.getContactInfo() != null ? ContactInfoResponse.from(location) : null)
+                .openingHours(
+                        location.getOpeningHours() != null
+                                ? OpeningHoursResponse.from(location.getOpeningHours())
+                                : null)
+                .availableServices(location.getAvailableServices())
                 .createdBy(location.getCreatedBy())
-                .createdDate(DateTimeUtils.toEpochMillis(location.getCreatedDate()))
-                .modifiedBy(location.getModifiedBy())
-                .modifiedDate(DateTimeUtils.toEpochMillis(location.getModifiedDate()))
-                .formattedOperatingDateTime(LocationUtils.formatOperatingDateTime(location.getOperatingHours()))
-                .locationOperatingHours(LocationOperatingHourResponse.fromEntities(location.getOperatingHours()))
-                .locationAvailableServices(
-                        LocationAvailableServiceResponse.fromEntities(location.getAvailableServices()))
+                .updatedBy(location.getUpdatedBy())
+                .createdAt(location.getCreatedAt())
+                .updatedAt(location.getUpdatedAt())
                 .build();
     }
 
-    public static List<LocationResponse> fromEntities(Double requestLat, Double requestLng, List<Location> locations) {
-        if (locations == null || locations.isEmpty()) {
-            return Collections.emptyList();
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record OperatingStatusResponse(boolean temporarilyClosed, Instant closedUntil) {}
+
+    public record CoordinateResponse(double latitude, double longitude) {
+        static CoordinateResponse from(Location l) {
+            return new CoordinateResponse(
+                    l.getCoordinate().getLatitude(), l.getCoordinate().getLongitude());
         }
-        return locations.stream()
-                .map(location -> fromEntity(requestLat, requestLng, location))
-                .toList();
     }
+
+    public record AddressResponse(
+            String street, String commune, String district, String province, String country, String fullAddress) {
+        static AddressResponse from(Location l) {
+            var a = l.getAddress();
+            return new AddressResponse(
+                    a.getStreet(), a.getCommune(), a.getDistrict(), a.getProvince(), a.getCountry(), a.fullAddress());
+        }
+    }
+
+    public record ContactInfoResponse(String phone, String email, String website, String googleMapsUrl) {
+        static ContactInfoResponse from(Location l) {
+            var c = l.getContactInfo();
+            return new ContactInfoResponse(c.getPhone(), c.getEmail(), c.getWebsite(), c.getGoogleMapsUrl());
+        }
+    }
+
+    public record OpeningHoursResponse(Map<String, DayScheduleResponse> schedule, String specialNotes) {
+        static OpeningHoursResponse from(OpeningHours oh) {
+            Map<String, DayScheduleResponse> schedule = oh.getSchedule().entrySet().stream()
+                    .collect(Collectors.toMap(
+                            e -> e.getKey().name(),
+                            e -> new DayScheduleResponse(
+                                    e.getValue().getOpenTime().toString(),
+                                    e.getValue().getCloseTime().toString())));
+            return new OpeningHoursResponse(schedule, oh.getSpecialNotes());
+        }
+    }
+
+    public record DayScheduleResponse(String openTime, String closeTime) {}
 }
