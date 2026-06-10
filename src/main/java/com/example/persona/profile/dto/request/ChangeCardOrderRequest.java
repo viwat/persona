@@ -1,7 +1,7 @@
 package com.example.persona.profile.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.dto.CustomerBaseRequest;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

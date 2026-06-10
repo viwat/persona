@@ -58,7 +58,8 @@ public class CustomerStageReconciler {
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             // Another thread already initialized stages for this customer (race at first-time submit).
             // The unique constraint (customer_key, stage_id) caught the duplicate — safe to ignore.
-            log.warn("Concurrent stage initialization detected for customer: {} — rows already exist, skipping",
+            log.warn(
+                    "Concurrent stage initialization detected for customer: {} — rows already exist, skipping",
                     customerKey);
         }
     }

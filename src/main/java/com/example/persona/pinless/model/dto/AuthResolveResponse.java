@@ -1,7 +1,7 @@
 package com.example.persona.pinless.model.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.example.persona.pinless.model.enums.BreachReason;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;

@@ -44,26 +44,35 @@ public class MigrationStageSeeder {
         }
 
         List<MigrationStage> stages = List.of(
-                stage("MASTER_ACCOUNT", "Master Account Migration",
+                stage(
+                        "MASTER_ACCOUNT",
+                        "Master Account Migration",
                         "Migrate master account data from Oracle to PostgreSQL",
-                        1, false, true),
-                stage("ACCOUNT", "Account Profile Migration",
-                        "Enrich account profile with CDP data",
-                        2, false, true),
-                stage("DEVICE", "Device Migration",
+                        1,
+                        false,
+                        true),
+                stage("ACCOUNT", "Account Profile Migration", "Enrich account profile with CDP data", 2, false, true),
+                stage(
+                        "DEVICE",
+                        "Device Migration",
                         "Migrate device registration data from Oracle (optional — customer may have no device)",
-                        3, false, false),
-                stage("CARD", "Card Migration",
+                        3,
+                        false,
+                        false),
+                stage(
+                        "CARD",
+                        "Card Migration",
                         "Migrate virtual and physical card data from Oracle (final stage)",
-                        4, true, false));
+                        4,
+                        true,
+                        false));
 
         stageRepository.saveAll(stages);
         log.info("[MigrationStageSeeder] Seeded {} migration stages", stages.size());
     }
 
     private static MigrationStage stage(
-            String code, String name, String description,
-            int order, boolean isFinal, boolean isMandatory) {
+            String code, String name, String description, int order, boolean isFinal, boolean isMandatory) {
         return MigrationStage.builder()
                 .code(code)
                 .name(name)

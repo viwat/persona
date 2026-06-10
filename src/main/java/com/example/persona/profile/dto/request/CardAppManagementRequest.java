@@ -1,7 +1,7 @@
 package com.example.persona.profile.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.dto.CustomerBaseRequest;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;

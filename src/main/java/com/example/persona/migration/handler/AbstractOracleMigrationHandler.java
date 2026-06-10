@@ -33,8 +33,7 @@ public abstract class AbstractOracleMigrationHandler implements MigrationStageHa
     protected final CdpClient cdpClient;
 
     protected AbstractOracleMigrationHandler(
-            DigiMasterAccountViewRepository digiMasterAccountViewRepository,
-            CdpClient cdpClient) {
+            DigiMasterAccountViewRepository digiMasterAccountViewRepository, CdpClient cdpClient) {
         this.digiMasterAccountViewRepository = digiMasterAccountViewRepository;
         this.cdpClient = cdpClient;
     }
@@ -49,18 +48,16 @@ public abstract class AbstractOracleMigrationHandler implements MigrationStageHa
      */
     protected Optional<DigiMasterAccountView> getDataFromSource(ParsedKey key) {
         if (StringUtils.hasText(key.loginId())) {
-            Optional<DigiMasterAccountView> result =
-                    digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
-                            key.loginId(), MigrationConstants.APPLICATION_ID_WINGPAY);
+            Optional<DigiMasterAccountView> result = digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
+                    key.loginId(), MigrationConstants.APPLICATION_ID_WINGPAY);
             if (result.isPresent()) {
                 return result;
             }
         }
 
         if (StringUtils.hasText(key.accountNo())) {
-            Optional<DigiMasterAccountView> result =
-                    digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
-                            key.accountNo(), MigrationConstants.APPLICATION_ID_WINGPAY);
+            Optional<DigiMasterAccountView> result = digiMasterAccountViewRepository.findByLoginIdAndApplicationId(
+                    key.accountNo(), MigrationConstants.APPLICATION_ID_WINGPAY);
             if (result.isPresent()) {
                 return result;
             }

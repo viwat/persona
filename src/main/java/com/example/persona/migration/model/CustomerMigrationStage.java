@@ -10,9 +10,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -30,9 +30,7 @@ import lombok.experimental.SuperBuilder;
 @Table(
         name = "dgtl_customer_migration_stage",
         uniqueConstraints = @UniqueConstraint(columnNames = {"customer_key", "stage_id"}),
-        indexes = {
-            @Index(name = "idx_cms_customer_status", columnList = "customer_key, stage_status")
-        })
+        indexes = {@Index(name = "idx_cms_customer_status", columnList = "customer_key, stage_status")})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -73,23 +73,24 @@ public class MigrationBackgroundProcessor {
                     } else if (mandatory) {
                         // Mandatory stage failed — abort the job using result directly (no re-fetch needed).
                         String errorCode = stageResult.errorCode() != null
-                                ? stageResult.errorCode() : MigrationConstants.ERROR_CODE_STAGE_FAILED;
+                                ? stageResult.errorCode()
+                                : MigrationConstants.ERROR_CODE_STAGE_FAILED;
                         String errorMsg = stageResult.errorMessage() != null
-                                ? stageResult.errorMessage() : "Mandatory stage failed: " + stageCode;
+                                ? stageResult.errorMessage()
+                                : "Mandatory stage failed: " + stageCode;
 
-                        log.warn("[ASYNC] Mandatory stage {} failed for job {} — stopping migration",
-                                stageCode, jobId);
-                        migrationJobPersistence.updateJobStatus(
-                                jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
+                        log.warn("[ASYNC] Mandatory stage {} failed for job {} — stopping migration", stageCode, jobId);
+                        migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
                         jobFailed = true;
                         continueProcessing = false;
                     } else {
                         // Non-mandatory stage failed — mark SKIPPED so it is not re-picked, continue.
-                        log.warn("[ASYNC] Non-mandatory stage {} failed for job {} — skipping and continuing",
-                                stageCode, jobId);
-                        CustomerMigrationStage failed = customerStageRepository
-                                .findById(stage.getId())
-                                .orElse(stage);
+                        log.warn(
+                                "[ASYNC] Non-mandatory stage {} failed for job {} — skipping and continuing",
+                                stageCode,
+                                jobId);
+                        CustomerMigrationStage failed =
+                                customerStageRepository.findById(stage.getId()).orElse(stage);
                         failed.setStageStatus(MigrationStageStatus.SKIPPED);
                         customerStageRepository.save(failed);
                     }
@@ -97,8 +98,10 @@ public class MigrationBackgroundProcessor {
             }
 
             if (iterations >= maxIterations) {
-                log.error("[ASYNC] Job {} exceeded max iterations ({}) — possible infinite retry loop",
-                        jobId, maxIterations);
+                log.error(
+                        "[ASYNC] Job {} exceeded max iterations ({}) — possible infinite retry loop",
+                        jobId,
+                        maxIterations);
                 migrationJobPersistence.updateJobStatus(
                         jobId,
                         MigrationJobStatus.FAILED,
@@ -154,8 +157,7 @@ public class MigrationBackgroundProcessor {
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
             } else if (!mandatory) {
                 // Non-mandatory failure — skip and still mark the job as completed.
-                log.warn("[ASYNC-SINGLE] Non-mandatory stage {} failed — marking SKIPPED, job COMPLETED",
-                        stageCode);
+                log.warn("[ASYNC-SINGLE] Non-mandatory stage {} failed — marking SKIPPED, job COMPLETED", stageCode);
                 customerStageRepository.findById(stage.getId()).ifPresent(s -> {
                     s.setStageStatus(MigrationStageStatus.SKIPPED);
                     customerStageRepository.save(s);
@@ -163,11 +165,10 @@ public class MigrationBackgroundProcessor {
                 migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.COMPLETED, null, null);
             } else {
                 String errorCode = stageResult.errorCode() != null
-                        ? stageResult.errorCode() : MigrationConstants.ERROR_CODE_STAGE_FAILED;
-                String errorMsg = stageResult.errorMessage() != null
-                        ? stageResult.errorMessage() : "Check stage logs";
-                migrationJobPersistence.updateJobStatus(
-                        jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
+                        ? stageResult.errorCode()
+                        : MigrationConstants.ERROR_CODE_STAGE_FAILED;
+                String errorMsg = stageResult.errorMessage() != null ? stageResult.errorMessage() : "Check stage logs";
+                migrationJobPersistence.updateJobStatus(jobId, MigrationJobStatus.FAILED, errorCode, errorMsg);
             }
 
         } catch (Exception e) {
@@ -187,8 +188,7 @@ public class MigrationBackgroundProcessor {
      * display order. Single query — replaces the previous two-call {@code .or()} chain.
      */
     private Optional<CustomerMigrationStage> findNextStageToProcess(String customerKey) {
-        return customerStageRepository
-                .findFirstByCustomerKeyAndStageStatusInOrderByStage_DisplayOrderAsc(
-                        customerKey, ACTIONABLE_STATUSES);
+        return customerStageRepository.findFirstByCustomerKeyAndStageStatusInOrderByStage_DisplayOrderAsc(
+                customerKey, ACTIONABLE_STATUSES);
     }
 }

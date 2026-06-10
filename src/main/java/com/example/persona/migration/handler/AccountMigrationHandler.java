@@ -50,7 +50,7 @@ public class AccountMigrationHandler implements MigrationStageHandler {
             BigDecimal availableBalance = accountDetailData.getAvailableBalance();
 
             String customerNo = accountDetailData.getCustomerNo();
-            String accountNo  = accountDetailData.getAccountNo();
+            String accountNo = accountDetailData.getAccountNo();
 
             AccountProfile accountProfile = accountProfileRepository
                     .findByCustomerNoAndAccountNo(customerNo, accountNo)

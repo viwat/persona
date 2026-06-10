@@ -1,8 +1,5 @@
 package com.example.persona.exception;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.exc.InvalidFormatException;
-import tools.jackson.databind.exc.MismatchedInputException;
 import com.example.persona.enums.ErrorCode;
 import com.example.persona.utils.TraceIdUtils;
 import io.micrometer.tracing.Tracer;
@@ -28,6 +25,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 @Slf4j
 @RestControllerAdvice

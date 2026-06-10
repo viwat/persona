@@ -47,7 +47,7 @@ public class MigrationStatusService {
         Optional<CustomerMigrationStage> doneFinalStage = customerStages.stream()
                 .filter(cs -> Boolean.TRUE.equals(cs.getStage().getIsFinal()))
                 .filter(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED
-                           || cs.getStageStatus() == MigrationStageStatus.SKIPPED)
+                        || cs.getStageStatus() == MigrationStageStatus.SKIPPED)
                 .findFirst();
 
         // Guard against a misconfigured stage table where no mandatory stages exist:
@@ -61,8 +61,7 @@ public class MigrationStatusService {
         // Non-mandatory stages that are FAILED or SKIPPED do not block completion.
         boolean migrationCompleted = !mandatoryStages.isEmpty()
                 && doneFinalStage.isPresent()
-                && mandatoryStages.stream()
-                        .allMatch(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED);
+                && mandatoryStages.stream().allMatch(cs -> cs.getStageStatus() == MigrationStageStatus.COMPLETED);
 
         CustomerMigrationStage currentStage = findCurrentStage(customerStages);
         CustomerMigrationStage nextPendingStage = findNextPendingStage(customerStages);

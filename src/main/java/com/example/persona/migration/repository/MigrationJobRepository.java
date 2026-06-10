@@ -59,9 +59,7 @@ public interface MigrationJobRepository extends JpaRepository<MigrationJob, Long
             SET j.startedAt = :startedAt
             WHERE j.jobId = :jobId AND j.startedAt IS NULL
             """)
-    int setStartedAtIfNull(
-            @Param("jobId") String jobId,
-            @Param("startedAt") LocalDateTime startedAt);
+    int setStartedAtIfNull(@Param("jobId") String jobId, @Param("startedAt") LocalDateTime startedAt);
 
     /**
      * Updates progress counters without touching any other fields.

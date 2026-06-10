@@ -1,7 +1,7 @@
 package com.example.persona.migration.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.migration.enums.MigrationStageStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

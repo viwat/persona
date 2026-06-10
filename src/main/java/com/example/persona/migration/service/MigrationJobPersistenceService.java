@@ -25,10 +25,11 @@ public class MigrationJobPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateJobStatus(String jobId, MigrationJobStatus status, String errorCode, String errorMessage) {
         LocalDateTime completedAt = (status == MigrationJobStatus.COMPLETED || status == MigrationJobStatus.FAILED)
-                ? LocalDateTime.now() : null;
+                ? LocalDateTime.now()
+                : null;
         // Only persist errorCode/errorMessage on FAILED; clear them otherwise.
         String resolvedCode = status == MigrationJobStatus.FAILED ? errorCode : null;
-        String resolvedMsg  = status == MigrationJobStatus.FAILED ? errorMessage : null;
+        String resolvedMsg = status == MigrationJobStatus.FAILED ? errorMessage : null;
 
         jobRepository.updateStatusFields(jobId, status, resolvedCode, resolvedMsg, completedAt);
 

@@ -39,6 +39,5 @@ public interface MigrationStageRepository extends JpaRepository<MigrationStage, 
 			AND s.displayOrder > :currentOrder
 			ORDER BY s.displayOrder ASC
 			""")
-    List<MigrationStage> findNextStages(
-            @Param("currentOrder") Integer currentOrder, Pageable pageable);
+    List<MigrationStage> findNextStages(@Param("currentOrder") Integer currentOrder, Pageable pageable);
 }

@@ -1,10 +1,10 @@
 package com.example.persona.profile.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.dto.CustomerBaseRequest;
 import com.example.persona.profile.dto.response.AccountBadgeResponse;
 import com.example.persona.profile.dto.response.AccountHolderResponse;
 import com.example.persona.profile.dto.response.AccountServiceResponse;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.*;

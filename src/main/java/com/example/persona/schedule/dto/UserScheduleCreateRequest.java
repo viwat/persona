@@ -1,8 +1,8 @@
 package com.example.persona.schedule.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.dto.CustomerBaseRequest;
 import com.example.persona.enums.FrequencyType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

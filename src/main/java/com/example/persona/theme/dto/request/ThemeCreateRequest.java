@@ -1,7 +1,7 @@
 package com.example.persona.theme.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.model.MultilingualContent;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;

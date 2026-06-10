@@ -2,8 +2,8 @@ package com.example.persona.home.service;
 
 import com.example.persona.config.UserContextHolder;
 import com.example.persona.dto.CustomerBaseRequest;
-import com.example.persona.exception.BusinessException;
 import com.example.persona.dto.UserContext;
+import com.example.persona.exception.BusinessException;
 import com.example.persona.home.dto.GreetingResponse;
 import com.example.persona.home.dto.HomeScreenConfigResponse;
 import com.example.persona.home.dto.UpdateBannerResponse;

@@ -1,7 +1,7 @@
 package com.example.persona.favorite.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.persona.dto.CustomerBaseRequest;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.Map;

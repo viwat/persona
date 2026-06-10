@@ -73,7 +73,7 @@ public class LocalOracleDataSeeder {
         masterAcc.setMasterAccId("MACC001");
         masterAcc.setUserName("testuser");
         masterAcc.setPartyId("100000001");
-        masterAcc.setLoginId("ACC001");            // accountNo used as loginId in WINGPAY
+        masterAcc.setLoginId("ACC001"); // accountNo used as loginId in WINGPAY
         masterAcc.setEntity("WING");
         masterAcc.setPhoneNumber("0981234567");
         masterAcc.setStatus("A");
@@ -86,7 +86,7 @@ public class LocalOracleDataSeeder {
                 .masterDeviceId("DEV001")
                 .masterAccId("MACC001")
                 .deviceId("TEST-DEVICE-UUID-001")
-                .status("DA")                      // "DA" = Device Active
+                .status("DA") // "DA" = Device Active
                 .osPlatform("ANDROID")
                 .osVersion("13")
                 .createdOn(now)
@@ -97,8 +97,8 @@ public class LocalOracleDataSeeder {
         // ── Virtual card (Oracle MTX_VIRTUAL_CARD) ─────────────────────────
         MtxVirtualCard virtualCard = MtxVirtualCard.builder()
                 .masterAccId("MACC001")
-                .trackingNumber("VCARD001")        // composite PK part
-                .cardType("VISA")                  // composite PK part
+                .trackingNumber("VCARD001") // composite PK part
+                .cardType("VISA") // composite PK part
                 .accountNo("ACC001")
                 .cardStatus("A")
                 .cardNumber("4567")
@@ -129,7 +129,6 @@ public class LocalOracleDataSeeder {
                 .build();
         physicalCardRepo.save(physCard);
 
-        log.info("[LocalOracleDataSeeder] Seeded Oracle source data. "
-                + "Test customerKey: 100000001_ACC001_MACC001");
+        log.info("[LocalOracleDataSeeder] Seeded Oracle source data. " + "Test customerKey: 100000001_ACC001_MACC001");
     }
 }

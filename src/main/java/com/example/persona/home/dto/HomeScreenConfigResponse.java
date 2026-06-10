@@ -1,7 +1,7 @@
 package com.example.persona.home.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.example.persona.theme.dto.response.ThemeDownloadResponse;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

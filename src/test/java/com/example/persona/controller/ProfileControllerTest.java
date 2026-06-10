@@ -8,8 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.example.persona.dto.CustomerBaseRequest;
 import com.example.persona.exception.BusinessException;
 import com.example.persona.exception.GlobalExceptionHandler;
@@ -21,6 +19,8 @@ import com.example.persona.profile.service.AccountAppProfileService;
 import com.example.persona.profile.service.CardAppProfileService;
 import com.example.persona.profile.service.CustomerAppProfileService;
 import com.example.persona.profile.service.ProfileService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.micrometer.tracing.Tracer;
 import java.math.BigDecimal;
 import java.time.LocalDate;

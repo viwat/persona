@@ -143,8 +143,7 @@ public class UserPersonaCache {
             return Optional.of(entry.getPersona());
         } catch (Exception e) {
             log.error("Error retrieving CustomerPersona from local cache for customerKey: {}", customerKey, e);
-            throw new AppException(
-                    "Failed to retrieve customer persona from local cache", ErrorCode.CACHE_ERROR, e);
+            throw new AppException("Failed to retrieve customer persona from local cache", ErrorCode.CACHE_ERROR, e);
         }
     }
 
@@ -155,8 +154,7 @@ public class UserPersonaCache {
             log.debug("Successfully removed CustomerPersona from local cache for customerKey: {}", customerKey);
         } catch (Exception e) {
             log.error("Error removing CustomerPersona from local cache for customerKey: {}", customerKey, e);
-            throw new AppException(
-                    "Failed to remove customer persona from local cache", ErrorCode.CACHE_ERROR, e);
+            throw new AppException("Failed to remove customer persona from local cache", ErrorCode.CACHE_ERROR, e);
         }
     }
 

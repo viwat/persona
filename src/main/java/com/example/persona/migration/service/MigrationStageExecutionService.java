@@ -90,8 +90,7 @@ public class MigrationStageExecutionService {
             result = handler.execute(stage);
         } catch (Exception e) {
             log.error("Unexpected exception in stage {}", stageCode, e);
-            result = MigrationResult.failure(
-                    "EXCEPTION", e.getMessage() != null ? e.getMessage() : "Unknown error");
+            result = MigrationResult.failure("EXCEPTION", e.getMessage() != null ? e.getMessage() : "Unknown error");
         }
 
         applyResultToStage(stage, result);
@@ -100,12 +99,14 @@ public class MigrationStageExecutionService {
         try {
             customerStageRepository.save(stage);
         } catch (ObjectOptimisticLockingFailureException ole) {
-            log.warn("Optimistic lock conflict saving final status for stage {} — re-fetching and retrying",
-                    stageCode, ole);
+            log.warn(
+                    "Optimistic lock conflict saving final status for stage {} — re-fetching and retrying",
+                    stageCode,
+                    ole);
             CustomerMigrationStage fresh = customerStageRepository
                     .findById(customerStageId)
-                    .orElseThrow(() -> new IllegalStateException("Stage row disappeared on OLE retry: "
-                            + customerStageId));
+                    .orElseThrow(
+                            () -> new IllegalStateException("Stage row disappeared on OLE retry: " + customerStageId));
             applyResultToStage(fresh, result);
             customerStageRepository.save(fresh);
         }

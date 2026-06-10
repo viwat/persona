@@ -2,9 +2,9 @@ package com.example.persona.profile.service;
 
 import com.example.persona.config.UserContextHolder;
 import com.example.persona.dto.CustomerBaseRequest;
+import com.example.persona.dto.UserContext;
 import com.example.persona.enums.ErrorCode;
 import com.example.persona.exception.BusinessException;
-import com.example.persona.dto.UserContext;
 import com.example.persona.profile.dto.request.CustomerAppProfileRequest;
 import com.example.persona.profile.dto.request.ProfileRequest;
 import com.example.persona.profile.dto.response.CustomerAppProfileResponse;

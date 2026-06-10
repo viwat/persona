@@ -27,9 +27,7 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @Table(
         name = "dgtl_migration_job",
-        indexes = {
-            @Index(name = "idx_mj_customer_status", columnList = "customer_key, job_status")
-        })
+        indexes = {@Index(name = "idx_mj_customer_status", columnList = "customer_key, job_status")})
 @Getter
 @Setter
 @NoArgsConstructor
