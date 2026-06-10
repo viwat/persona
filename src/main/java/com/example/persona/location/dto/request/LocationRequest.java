@@ -44,7 +44,34 @@ public sealed interface LocationRequest
 
             @URL(message = "coverUrl must be a valid URL starting with http:// or https://")
             @Size(max = 1000, message = "coverUrl must not exceed 1000 characters")
-            String coverUrl)
+            String coverUrl,
+
+            @URL(message = "imageUrl must be a valid URL starting with http:// or https://")
+            @Size(max = 1000, message = "imageUrl must not exceed 1000 characters")
+            String imageUrl,
+
+            @Size(max = 50, message = "branchCode must not exceed 50 characters")
+            String branchCode,
+
+            @Size(max = 255, message = "branchName must not exceed 255 characters")
+            String branchName,
+
+            @Size(max = 100, message = "atmSerial must not exceed 100 characters")
+            String atmSerial,
+
+            @Size(max = 100, message = "categoryCode must not exceed 100 characters")
+            String categoryCode,
+
+            @DecimalMin(value = "0.0", message = "avgRating must be between 0 and 5")
+            @DecimalMax(value = "5.0", message = "avgRating must be between 0 and 5")
+            Double avgRating,
+
+            @Size(max = 255, message = "actionLabel must not exceed 255 characters")
+            String actionLabel,
+
+            @URL(message = "actionUrl must be a valid URL starting with http:// or https://")
+            @Size(max = 1000, message = "actionUrl must not exceed 1000 characters")
+            String actionUrl)
             implements LocationRequest {
 
         public CreateLocationRequest {
@@ -84,7 +111,34 @@ public sealed interface LocationRequest
 
             @URL(message = "coverUrl must be a valid URL starting with http:// or https://")
             @Size(max = 1000, message = "coverUrl must not exceed 1000 characters")
-            String coverUrl)
+            String coverUrl,
+
+            @URL(message = "imageUrl must be a valid URL starting with http:// or https://")
+            @Size(max = 1000, message = "imageUrl must not exceed 1000 characters")
+            String imageUrl,
+
+            @Size(max = 50, message = "branchCode must not exceed 50 characters")
+            String branchCode,
+
+            @Size(max = 255, message = "branchName must not exceed 255 characters")
+            String branchName,
+
+            @Size(max = 100, message = "atmSerial must not exceed 100 characters")
+            String atmSerial,
+
+            @Size(max = 100, message = "categoryCode must not exceed 100 characters")
+            String categoryCode,
+
+            @DecimalMin(value = "0.0", message = "avgRating must be between 0 and 5")
+            @DecimalMax(value = "5.0", message = "avgRating must be between 0 and 5")
+            Double avgRating,
+
+            @Size(max = 255, message = "actionLabel must not exceed 255 characters")
+            String actionLabel,
+
+            @URL(message = "actionUrl must be a valid URL starting with http:// or https://")
+            @Size(max = 1000, message = "actionUrl must not exceed 1000 characters")
+            String actionUrl)
             implements LocationRequest {}
 
     record CoordinateDto(
@@ -131,7 +185,11 @@ public sealed interface LocationRequest
 
             @URL(message = "googleMapsUrl must be a valid URL starting with http:// or https://")
             @Size(max = 500, message = "googleMapsUrl must not exceed 500 characters")
-            String googleMapsUrl) {}
+            String googleMapsUrl,
+
+            @URL(message = "facebookUrl must be a valid URL starting with http:// or https://")
+            @Size(max = 500, message = "facebookUrl must not exceed 500 characters")
+            String facebookUrl) {}
 
     /** Optional body for PATCH /{id}/close — all fields optional. */
     record CloseLocationRequest(

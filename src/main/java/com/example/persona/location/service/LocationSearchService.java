@@ -8,8 +8,11 @@ import com.meilisearch.sdk.Client;
 import com.meilisearch.sdk.Index;
 import com.meilisearch.sdk.SearchRequest;
 import com.meilisearch.sdk.model.SearchResult;
+import com.meilisearch.sdk.model.Settings;
+import com.meilisearch.sdk.model.TypoTolerance;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -116,6 +119,48 @@ public class LocationSearchService {
         } catch (Exception e) {
             log.error("Meilisearch findNearby failed: {}", e.getMessage());
             throw new RuntimeException("Meilisearch findNearby failed", e);
+        }
+    }
+
+    /**
+     * Applies index settings required for the location feature. Without filterable
+     * attributes (incl. {@code _geo}) Meilisearch rejects the type/province/geo filters
+     * and every query silently falls back to PostgreSQL. Typo tolerance backs the
+     * "show similar location names" requirement (FR-05.3). Idempotent — safe on every boot.
+     */
+    @CircuitBreaker(name = "meilisearch")
+    public void configureIndex() {
+        try {
+            Index index = meilisearchClient.index(indexName);
+
+            TypoTolerance typoTolerance = new TypoTolerance().setEnabled(true);
+            HashMap<String, Integer> minWordSizeForTypos = new HashMap<>();
+            minWordSizeForTypos.put("oneTypo", 4);
+            minWordSizeForTypos.put("twoTypos", 8);
+            typoTolerance.setMinWordSizeForTypos(minWordSizeForTypos);
+
+            Settings settings = new Settings()
+                    .setSearchableAttributes(new String[] {
+                        "name",
+                        "branchName",
+                        "branchCode",
+                        "atmSerial",
+                        "searchText",
+                        "fullAddress",
+                        "province",
+                        "district",
+                        "commune"
+                    })
+                    .setFilterableAttributes(
+                            new String[] {"_geo", "type", "status", "categoryCode", "province", "district", "commune"})
+                    .setSortableAttributes(new String[] {"_geo"})
+                    .setTypoTolerance(typoTolerance);
+
+            index.updateSettings(settings);
+            log.info("Configured Meilisearch index '{}' (filterable/sortable/searchable/typo)", indexName);
+        } catch (Exception e) {
+            log.error("Failed to configure Meilisearch index settings: {}", e.getMessage());
+            throw new RuntimeException("Meilisearch settings update failed", e);
         }
     }
 

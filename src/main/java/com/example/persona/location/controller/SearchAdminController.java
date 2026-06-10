@@ -28,6 +28,7 @@ public class SearchAdminController {
     @Operation(summary = "Re-index all active locations in Meilisearch")
     public ResponseEntity<ApiResponse<String>> reindex() {
         log.info("Starting full Meilisearch reindex...");
+        locationSearchService.configureIndex();
         var allLocations = locationService.findAll(Arrays.asList(LocationType.values()));
         locationSearchService.reindexAll(allLocations);
         String message = String.format("Reindexed %d locations", allLocations.size());

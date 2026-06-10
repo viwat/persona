@@ -22,13 +22,14 @@ public class MeilisearchStartupIndexer {
     @EventListener(ApplicationReadyEvent.class)
     @Async
     public void onApplicationReady() {
-        log.info("Starting Meilisearch startup reindex...");
+        log.info("Starting Meilisearch startup configuration and reindex...");
         try {
+            locationSearchService.configureIndex();
             var locations = locationService.findAll(Arrays.asList(LocationType.values()));
             locationSearchService.reindexAll(locations);
             log.info("Meilisearch startup reindex complete: {} locations indexed", locations.size());
         } catch (Exception e) {
-            log.warn("Meilisearch startup reindex failed (non-fatal): {}", e.getMessage());
+            log.warn("Meilisearch startup configuration/reindex failed (non-fatal): {}", e.getMessage());
         }
     }
 }

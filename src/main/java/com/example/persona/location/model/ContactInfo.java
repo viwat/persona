@@ -10,4 +10,6 @@ public class ContactInfo {
     String email;
     String website;
     String googleMapsUrl;
+    /** Facebook page URL (FR-03) — also feeds the app's Share action (FR-06). */
+    String facebookUrl;
 }

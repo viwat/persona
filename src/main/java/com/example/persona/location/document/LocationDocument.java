@@ -42,6 +42,12 @@ public class LocationDocument {
     private double latitude;
     private double longitude;
 
+    // Category & source-system identifiers (FR-02 branch search, category filter)
+    private String categoryCode;
+    private String branchCode;
+    private String branchName;
+    private String atmSerial;
+
     // Contact info
     private String phone;
     private String email;
@@ -95,6 +101,9 @@ public class LocationDocument {
                 location.getAddress().getStreet() != null
                         ? location.getAddress().getStreet()
                         : "",
+                location.getBranchName() != null ? location.getBranchName() : "",
+                location.getBranchCode() != null ? location.getBranchCode() : "",
+                location.getAtmSerial() != null ? location.getAtmSerial() : "",
                 phone != null ? phone : "",
                 openingHoursNotes != null ? openingHoursNotes : "");
 
@@ -115,6 +124,10 @@ public class LocationDocument {
                         location.getCoordinate().getLongitude()))
                 .latitude(location.getCoordinate().getLatitude())
                 .longitude(location.getCoordinate().getLongitude())
+                .categoryCode(location.getCategoryCode())
+                .branchCode(location.getBranchCode())
+                .branchName(location.getBranchName())
+                .atmSerial(location.getAtmSerial())
                 .phone(phone)
                 .email(email)
                 .website(website)

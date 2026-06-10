@@ -70,6 +70,8 @@ public interface LocationJpaRepository extends JpaRepository<LocationEntity, UUI
               AND (:commune IS NULL OR LOWER(l.commune) = LOWER(:commune))
               AND (:text IS NULL OR (
                    l.name ILIKE '%' || :text || '%'
+                OR l.branch_name ILIKE '%' || :text || '%'
+                OR l.branch_code ILIKE '%' || :text || '%'
                 OR l.street ILIKE '%' || :text || '%'
                 OR l.commune ILIKE '%' || :text || '%'
                 OR l.district ILIKE '%' || :text || '%'
@@ -96,6 +98,8 @@ public interface LocationJpaRepository extends JpaRepository<LocationEntity, UUI
               AND (:commune IS NULL OR LOWER(l.commune) = LOWER(:commune))
               AND (:text IS NULL OR (
                    l.name ILIKE '%' || :text || '%'
+                OR l.branch_name ILIKE '%' || :text || '%'
+                OR l.branch_code ILIKE '%' || :text || '%'
                 OR l.street ILIKE '%' || :text || '%'
                 OR l.commune ILIKE '%' || :text || '%'
                 OR l.district ILIKE '%' || :text || '%'

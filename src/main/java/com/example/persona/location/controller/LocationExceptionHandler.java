@@ -1,6 +1,7 @@
 package com.example.persona.location.controller;
 
 import com.example.persona.location.dto.response.ApiResponse;
+import com.example.persona.location.exception.CategoryNotFoundException;
 import com.example.persona.location.exception.LocationDuplicateException;
 import com.example.persona.location.exception.LocationNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -30,6 +31,13 @@ public class LocationExceptionHandler {
         log.debug("Location not found: {}", ex.getLocationId());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("LOCATION_NOT_FOUND", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CategoryNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCategoryNotFound(CategoryNotFoundException ex) {
+        log.debug("Category not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("CATEGORY_NOT_FOUND", ex.getMessage()));
     }
 
     // @RequestBody validation failures (@Valid on request body DTOs)

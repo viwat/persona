@@ -3,6 +3,7 @@ package com.example.persona.location.controller;
 import com.example.persona.location.dto.response.ApiResponse;
 import com.example.persona.location.dto.response.LocationResponse;
 import com.example.persona.location.dto.response.PageResponse;
+import com.example.persona.location.exception.LocationNotFoundException;
 import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.LocationType;
 import com.example.persona.location.service.LocationService;
@@ -27,6 +28,13 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Location - Public", description = "Browse, search, and explore Wing Bank locations")
 public class LocationPublicController {
 
+    /** FR-05.2 defaults: the 5 nearest locations within a 4 km radius. Both are overridable via query params. */
+    private static final String DEFAULT_NEARBY_RADIUS_KM = "4.0";
+
+    private static final String DEFAULT_NEARBY_LIMIT = "5";
+    private static final double DEFAULT_NEARBY_RADIUS_KM_VALUE = 4.0;
+    private static final int DEFAULT_NEARBY_LIMIT_VALUE = 5;
+
     private final LocationService locationService;
 
     @GetMapping
@@ -49,12 +57,11 @@ public class LocationPublicController {
     @Operation(summary = "Get location detail")
     @Timed(value = "http.location.getById")
     public ResponseEntity<ApiResponse<LocationResponse>> getById(@PathVariable UUID id) {
-        return locationService
+        LocationResponse body = locationService
                 .findById(id)
                 .map(LocationResponse::from)
-                .map(ApiResponse::ok)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new LocationNotFoundException(id));
+        return ResponseEntity.ok(ApiResponse.ok(body));
     }
 
     @GetMapping("/search")
@@ -83,9 +90,9 @@ public class LocationPublicController {
     public ResponseEntity<ApiResponse<List<NearbyLocationResponse>>> findNearby(
             @RequestParam @DecimalMin("-90.0") @DecimalMax("90.0") double lat,
             @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double lon,
-            @RequestParam(defaultValue = "5.0") @DecimalMin("0.1") @DecimalMax("50.0") double radius,
+            @RequestParam(defaultValue = DEFAULT_NEARBY_RADIUS_KM) @DecimalMin("0.1") @DecimalMax("50.0") double radius,
             @RequestParam(required = false) List<LocationType> types,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
+            @RequestParam(defaultValue = DEFAULT_NEARBY_LIMIT) @Min(1) @Max(100) int limit) {
         List<NearbyLocationResponse> results =
                 locationService.findNearby(new Coordinate(lat, lon), radius, types, limit).stream()
                         .map(r -> new NearbyLocationResponse(
@@ -104,9 +111,9 @@ public class LocationPublicController {
         List<NearbyLocationResponse> results = locationService
                 .findNearby(
                         new Coordinate(request.lat(), request.lon()),
-                        request.radiusKm() != null ? request.radiusKm() : 5.0,
+                        request.radiusKm() != null ? request.radiusKm() : DEFAULT_NEARBY_RADIUS_KM_VALUE,
                         request.types(),
-                        request.limit() != null ? request.limit() : 20)
+                        request.limit() != null ? request.limit() : DEFAULT_NEARBY_LIMIT_VALUE)
                 .stream()
                 .map(r -> new NearbyLocationResponse(
                         LocationResponse.from(r.location()), Math.round(r.distanceKm() * 100.0) / 100.0))

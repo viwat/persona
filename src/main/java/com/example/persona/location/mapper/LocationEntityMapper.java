@@ -1,6 +1,7 @@
 package com.example.persona.location.mapper;
 
 import com.example.persona.location.entity.LocationEntity;
+import com.example.persona.location.model.ActionLink;
 import com.example.persona.location.model.Address;
 import com.example.persona.location.model.ContactInfo;
 import com.example.persona.location.model.Coordinate;
@@ -19,6 +20,8 @@ public class LocationEntityMapper {
     // ── Domain → Entity ──────────────────────────────────────────────────────
 
     public LocationEntity toEntity(Location domain) {
+        ContactInfo contact = domain.getContactInfo();
+        ActionLink action = domain.getAction();
         return LocationEntity.builder()
                 .id(domain.getId())
                 .name(domain.getName())
@@ -34,18 +37,21 @@ public class LocationEntityMapper {
                         domain.getAddress().getCountry() != null
                                 ? domain.getAddress().getCountry()
                                 : "Cambodia")
-                .phone(domain.getContactInfo() != null ? domain.getContactInfo().getPhone() : null)
-                .email(domain.getContactInfo() != null ? domain.getContactInfo().getEmail() : null)
-                .website(
-                        domain.getContactInfo() != null
-                                ? domain.getContactInfo().getWebsite()
-                                : null)
-                .googleMapsUrl(
-                        domain.getContactInfo() != null
-                                ? domain.getContactInfo().getGoogleMapsUrl()
-                                : null)
+                .phone(contact != null ? contact.getPhone() : null)
+                .email(contact != null ? contact.getEmail() : null)
+                .website(contact != null ? contact.getWebsite() : null)
+                .googleMapsUrl(contact != null ? contact.getGoogleMapsUrl() : null)
+                .facebookUrl(contact != null ? contact.getFacebookUrl() : null)
                 .logoUrl(domain.getLogoUrl())
                 .coverUrl(domain.getCoverUrl())
+                .imageUrl(domain.getImageUrl())
+                .branchCode(domain.getBranchCode())
+                .branchName(domain.getBranchName())
+                .atmSerial(domain.getAtmSerial())
+                .categoryCode(domain.getCategoryCode())
+                .avgRating(domain.getAvgRating())
+                .actionLabel(action != null ? action.getLabel() : null)
+                .actionUrl(action != null ? action.getUrl() : null)
                 .temporarilyClosed(domain.isTemporarilyClosed())
                 .closedUntil(domain.getClosedUntil())
                 .createdBy(domain.getCreatedBy())
@@ -78,9 +84,17 @@ public class LocationEntityMapper {
                         .email(entity.getEmail())
                         .website(entity.getWebsite())
                         .googleMapsUrl(entity.getGoogleMapsUrl())
+                        .facebookUrl(entity.getFacebookUrl())
                         .build())
                 .logoUrl(entity.getLogoUrl())
                 .coverUrl(entity.getCoverUrl())
+                .imageUrl(entity.getImageUrl())
+                .branchCode(entity.getBranchCode())
+                .branchName(entity.getBranchName())
+                .atmSerial(entity.getAtmSerial())
+                .categoryCode(entity.getCategoryCode())
+                .avgRating(entity.getAvgRating())
+                .action(toActionLink(entity.getActionLabel(), entity.getActionUrl()))
                 .temporarilyClosed(entity.isTemporarilyClosed())
                 .closedUntil(entity.getClosedUntil())
                 .createdBy(entity.getCreatedBy())
@@ -123,14 +137,30 @@ public class LocationEntityMapper {
                 domain.getContactInfo() != null ? domain.getContactInfo().getWebsite() : null);
         entity.setGoogleMapsUrl(
                 domain.getContactInfo() != null ? domain.getContactInfo().getGoogleMapsUrl() : null);
+        entity.setFacebookUrl(
+                domain.getContactInfo() != null ? domain.getContactInfo().getFacebookUrl() : null);
         entity.setLogoUrl(domain.getLogoUrl());
         entity.setCoverUrl(domain.getCoverUrl());
+        entity.setImageUrl(domain.getImageUrl());
+        entity.setBranchCode(domain.getBranchCode());
+        entity.setBranchName(domain.getBranchName());
+        entity.setAtmSerial(domain.getAtmSerial());
+        entity.setCategoryCode(domain.getCategoryCode());
+        entity.setAvgRating(domain.getAvgRating());
+        entity.setActionLabel(domain.getAction() != null ? domain.getAction().getLabel() : null);
+        entity.setActionUrl(domain.getAction() != null ? domain.getAction().getUrl() : null);
         entity.setTemporarilyClosed(domain.isTemporarilyClosed());
         entity.setClosedUntil(domain.getClosedUntil());
         entity.setUpdatedBy(domain.getUpdatedBy());
         entity.setOpeningHours(toOpeningHoursJson(domain.getOpeningHours()));
         entity.setAvailableServices(domain.getAvailableServices());
         entity.setUpdatedAt(domain.getUpdatedAt());
+    }
+
+    /** Builds an {@link ActionLink} only when at least one field is present, else null. */
+    private ActionLink toActionLink(String label, String url) {
+        if (label == null && url == null) return null;
+        return ActionLink.builder().label(label).url(url).build();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

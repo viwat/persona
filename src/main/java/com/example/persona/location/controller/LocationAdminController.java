@@ -3,8 +3,6 @@ package com.example.persona.location.controller;
 import com.example.persona.location.dto.request.LocationRequest;
 import com.example.persona.location.dto.response.ApiResponse;
 import com.example.persona.location.dto.response.LocationResponse;
-import com.example.persona.location.model.AuditAction;
-import com.example.persona.location.model.AuditEvent;
 import com.example.persona.location.service.AuditService;
 import com.example.persona.location.service.LocationService;
 import com.example.persona.location.service.StorageService;
@@ -149,24 +147,7 @@ public class LocationAdminController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Image upload failed");
         }
 
-        // Build a minimal update to patch only the URL field
-        var existing = locationService
-                .findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Location not found: " + id));
-
-        var updateRequest = new LocationRequest.UpdateLocationRequest(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                type == ImageType.logo ? url : existing.getLogoUrl(),
-                type == ImageType.cover ? url : existing.getCoverUrl());
-        locationService.update(id, updateRequest, actor);
-
-        auditService.record(AuditEvent.of(
-                id, AuditAction.IMAGE_UPLOADED, actor, "{\"type\":\"" + type + "\",\"url\":\"" + url + "\"}"));
+        locationService.updateImage(id, type == ImageType.logo, url, actor);
 
         log.info("Image uploaded for location {}: type={}, url={}", id, type, url);
         return ResponseEntity.ok(ApiResponse.ok(new ImageUploadResponse(url), "Image uploaded"));

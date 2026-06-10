@@ -17,8 +17,15 @@ public record LocationResponse(
         String type,
         String typeDisplayName,
         String status,
+        String categoryCode,
+        String branchCode,
+        String branchName,
+        String atmSerial,
+        Double avgRating,
         String logoUrl,
         String coverUrl,
+        String imageUrl,
+        ActionLinkResponse action,
         OperatingStatusResponse operatingStatus,
         CoordinateResponse coordinate,
         AddressResponse address,
@@ -37,8 +44,15 @@ public record LocationResponse(
                 .type(location.getType().getCode())
                 .typeDisplayName(location.getType().getDisplayName())
                 .status(location.getStatus().name())
+                .categoryCode(location.getCategoryCode())
+                .branchCode(location.getBranchCode())
+                .branchName(location.getBranchName())
+                .atmSerial(location.getAtmSerial())
+                .avgRating(location.getAvgRating())
                 .logoUrl(location.getLogoUrl())
                 .coverUrl(location.getCoverUrl())
+                .imageUrl(location.getImageUrl())
+                .action(ActionLinkResponse.from(location))
                 .operatingStatus(new OperatingStatusResponse(location.isTemporarilyClosed(), location.getClosedUntil()))
                 .coordinate(CoordinateResponse.from(location))
                 .address(AddressResponse.from(location))
@@ -53,6 +67,16 @@ public record LocationResponse(
                 .createdAt(location.getCreatedAt())
                 .updatedAt(location.getUpdatedAt())
                 .build();
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ActionLinkResponse(String label, String url) {
+        static ActionLinkResponse from(Location l) {
+            return l.getAction() != null
+                    ? new ActionLinkResponse(
+                            l.getAction().getLabel(), l.getAction().getUrl())
+                    : null;
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -74,10 +98,12 @@ public record LocationResponse(
         }
     }
 
-    public record ContactInfoResponse(String phone, String email, String website, String googleMapsUrl) {
+    public record ContactInfoResponse(
+            String phone, String email, String website, String googleMapsUrl, String facebookUrl) {
         static ContactInfoResponse from(Location l) {
             var c = l.getContactInfo();
-            return new ContactInfoResponse(c.getPhone(), c.getEmail(), c.getWebsite(), c.getGoogleMapsUrl());
+            return new ContactInfoResponse(
+                    c.getPhone(), c.getEmail(), c.getWebsite(), c.getGoogleMapsUrl(), c.getFacebookUrl());
         }
     }
 

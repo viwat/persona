@@ -1,11 +1,13 @@
 package com.example.persona.location.service;
 
+import com.example.persona.enums.StatusType;
 import com.example.persona.location.dto.request.LocationRequest;
 import com.example.persona.location.entity.LocationEntity;
 import com.example.persona.location.exception.LocationDuplicateException;
 import com.example.persona.location.exception.LocationNotFoundException;
 import com.example.persona.location.mapper.GoogleMapsUrlParser;
 import com.example.persona.location.mapper.LocationEntityMapper;
+import com.example.persona.location.model.ActionLink;
 import com.example.persona.location.model.Address;
 import com.example.persona.location.model.AuditAction;
 import com.example.persona.location.model.AuditEvent;
@@ -15,6 +17,7 @@ import com.example.persona.location.model.Location;
 import com.example.persona.location.model.LocationStatus;
 import com.example.persona.location.model.LocationType;
 import com.example.persona.location.model.OpeningHours;
+import com.example.persona.location.repository.LocationCategoryRepository;
 import com.example.persona.location.repository.LocationJpaRepository;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -43,6 +46,7 @@ public class LocationService {
     private static final double METERS_PER_KM = 1000.0;
 
     private final LocationJpaRepository jpaRepository;
+    private final LocationCategoryRepository categoryRepository;
     private final LocationEntityMapper entityMapper;
     private final LocationSearchService searchService;
     private final LocationCacheService cacheService;
@@ -65,21 +69,32 @@ public class LocationService {
         if (jpaRepository.existsByNameIgnoreCase(request.name())) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
+        validateCategory(request.categoryCode());
 
         Coordinate coordinate = resolveCoordinate(request.coordinate(), request.contactInfo());
-        Location location = Location.create(
-                request.name(),
-                request.type(),
-                coordinate,
-                toAddress(request.address()),
-                request.contactInfo() != null ? toContactInfo(request.contactInfo()) : null,
-                request.openingHours() != null ? toOpeningHours(request.openingHours()) : null,
-                request.availableServices(),
-                request.logoUrl(),
-                request.coverUrl(),
-                actor);
+        String categoryCode = request.categoryCode() != null
+                ? request.categoryCode()
+                : request.type().getCode();
+        Location.Draft draft = Location.Draft.builder()
+                .name(request.name())
+                .type(request.type())
+                .coordinate(coordinate)
+                .address(toAddress(request.address()))
+                .contactInfo(toContactInfo(request.contactInfo()))
+                .openingHours(request.openingHours() != null ? toOpeningHours(request.openingHours()) : null)
+                .availableServices(request.availableServices())
+                .logoUrl(request.logoUrl())
+                .coverUrl(request.coverUrl())
+                .imageUrl(request.imageUrl())
+                .branchCode(request.branchCode())
+                .branchName(request.branchName())
+                .atmSerial(request.atmSerial())
+                .categoryCode(categoryCode)
+                .avgRating(request.avgRating())
+                .action(toActionLink(request.actionLabel(), request.actionUrl()))
+                .build();
 
-        Location saved = persist(location);
+        Location saved = persist(Location.create(draft, actor));
         indexAndCache(saved);
         audit(saved, AuditAction.CREATED, actor);
         log.info("Location created: id={}", saved.getId());
@@ -97,20 +112,28 @@ public class LocationService {
                 && jpaRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
+        validateCategory(request.categoryCode());
 
         Coordinate coordinate = request.coordinate() != null ? toCoordinate(request.coordinate()) : null;
-        Location updated = existing.update(
-                request.name(),
-                coordinate,
-                request.address() != null ? toAddress(request.address()) : null,
-                request.contactInfo() != null ? toContactInfo(request.contactInfo()) : null,
-                request.openingHours() != null ? toOpeningHours(request.openingHours()) : null,
-                request.availableServices(),
-                request.logoUrl(),
-                request.coverUrl(),
-                actor);
+        Location.Draft patch = Location.Draft.builder()
+                .name(request.name())
+                .coordinate(coordinate)
+                .address(request.address() != null ? toAddress(request.address()) : null)
+                .contactInfo(request.contactInfo() != null ? toContactInfo(request.contactInfo()) : null)
+                .openingHours(request.openingHours() != null ? toOpeningHours(request.openingHours()) : null)
+                .availableServices(request.availableServices())
+                .logoUrl(request.logoUrl())
+                .coverUrl(request.coverUrl())
+                .imageUrl(request.imageUrl())
+                .branchCode(request.branchCode())
+                .branchName(request.branchName())
+                .atmSerial(request.atmSerial())
+                .categoryCode(request.categoryCode())
+                .avgRating(request.avgRating())
+                .action(toActionLink(request.actionLabel(), request.actionUrl()))
+                .build();
 
-        Location saved = persist(updated);
+        Location saved = persist(existing.update(patch, actor));
         indexAndCache(saved);
         audit(saved, AuditAction.UPDATED, actor);
         log.info("Location updated: id={}", saved.getId());
@@ -170,6 +193,28 @@ public class LocationService {
         Location saved = persist(findOrThrow(id).reopen(actor));
         indexAndCache(saved);
         audit(saved, AuditAction.REOPENED, actor);
+        return saved;
+    }
+
+    /**
+     * Patches only the logo or cover image URL, then indexes, caches, and audits.
+     * Keeps image-upload concerns out of the controller and reuses the standard write path.
+     */
+    @Timed(value = "location.command.updateImage")
+    public Location updateImage(UUID id, boolean logo, String url, String actor) {
+        Location existing = findOrThrow(id);
+        Location.Draft patch = Location.Draft.builder()
+                .logoUrl(logo ? url : null)
+                .coverUrl(logo ? null : url)
+                .build();
+        Location saved = persist(existing.update(patch, actor));
+        indexAndCache(saved);
+        auditService.record(AuditEvent.of(
+                id,
+                AuditAction.IMAGE_UPLOADED,
+                actor,
+                "{\"type\":\"" + (logo ? "logo" : "cover") + "\",\"url\":\"" + url + "\"}"));
+        log.info("Image updated for location {}: type={}, url={}", id, logo ? "logo" : "cover", url);
         return saved;
     }
 
@@ -413,12 +458,26 @@ public class LocationService {
     }
 
     private ContactInfo toContactInfo(LocationRequest.ContactInfoDto dto) {
+        if (dto == null) return null;
         return ContactInfo.builder()
                 .phone(dto.phone())
                 .email(dto.email())
                 .website(dto.website())
                 .googleMapsUrl(dto.googleMapsUrl())
+                .facebookUrl(dto.facebookUrl())
                 .build();
+    }
+
+    private ActionLink toActionLink(String label, String url) {
+        if (label == null && url == null) return null;
+        return ActionLink.builder().label(label).url(url).build();
+    }
+
+    /** Rejects an unknown or inactive category code so locations only reference live categories. */
+    private void validateCategory(String categoryCode) {
+        if (categoryCode != null && !categoryRepository.existsByCodeAndStatus(categoryCode, StatusType.ACTIVE)) {
+            throw new IllegalArgumentException("Unknown or inactive category code: " + categoryCode);
+        }
     }
 
     private OpeningHours toOpeningHours(LocationRequest.OpeningHoursDto dto) {

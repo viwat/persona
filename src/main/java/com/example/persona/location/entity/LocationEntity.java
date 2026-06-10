@@ -80,6 +80,9 @@ public class LocationEntity {
     @Column(name = "google_maps_url", length = 500)
     private String googleMapsUrl;
 
+    @Column(name = "facebook_url", length = 500)
+    private String facebookUrl;
+
     // ── Images ───────────────────────────────────────────────────────────────
 
     @Column(name = "logo_url", length = 1000)
@@ -87,6 +90,34 @@ public class LocationEntity {
 
     @Column(name = "cover_url", length = 1000)
     private String coverUrl;
+
+    @Column(name = "image_url", length = 1000)
+    private String imageUrl;
+
+    // ── Source-system identifiers (FR-03) ─────────────────────────────────────
+
+    @Column(name = "branch_code", length = 50)
+    private String branchCode;
+
+    @Column(name = "branch_name", length = 255)
+    private String branchName;
+
+    @Column(name = "atm_serial", length = 100)
+    private String atmSerial;
+
+    // ── Presentation metadata (FR-03) ──────────────────────────────────────────
+
+    @Column(name = "category_code", length = 100)
+    private String categoryCode;
+
+    @Column(name = "avg_rating")
+    private Double avgRating;
+
+    @Column(name = "action_label", length = 255)
+    private String actionLabel;
+
+    @Column(name = "action_url", length = 1000)
+    private String actionUrl;
 
     // ── Operating status ─────────────────────────────────────────────────────
 
