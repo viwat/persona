@@ -21,7 +21,7 @@ source. Target: June 2026 app launch.
 
 | Component     | Technology                                                        |
 |---------------|-------------------------------------------------------------------|
-| Framework     | Spring Boot **4.0.5** / Java 21 / Gradle                          |
+| Framework     | Spring Boot **4.0.5** / Java toolchain **25** / Gradle            |
 | Database      | PostgreSQL (EDB-compatible — **no PostGIS**), Flyway migrations   |
 | Search        | Meilisearch (`meilisearch-java` 0.18.0)                           |
 | Cache         | Redis via **Lettuce** (Spring Data Redis) — Jedis was removed     |
@@ -147,7 +147,9 @@ snake_case). The location envelope has **no traced_id** today — see "Remaining
   precisely so the RESTRICT FK never trips. Tags are hard-deleted (join rows cascade).
 - `LocationService` validates category code exists and is ACTIVE before create/update.
 - Category codes intentionally mirror `LocationType` codes (branch, atm_crm, agent,
-  master_agent) during the enum→category transition. Keep them aligned.
+  master_agent) during the enum→category transition. `validateCategory` **rejects a
+  categoryCode that differs from the location's type code** — lift that guard only when
+  the v2 API makes categories the single source of truth and `type` becomes derived.
 
 ### Domain invariants
 - `Location.create/update` enforce required name/type/coordinate/address and trimming —

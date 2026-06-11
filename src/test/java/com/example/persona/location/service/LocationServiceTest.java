@@ -105,6 +105,21 @@ class LocationServiceTest {
         }
 
         @Test
+        @DisplayName("rejects a category code that does not match the location type")
+        void rejectsCategoryMismatchingType() {
+            when(jpaRepository.existsByNameIgnoreCase("Test Location")).thenReturn(false);
+            when(categoryRepository.existsByCodeAndStatus("atm_crm", StatusType.ACTIVE))
+                    .thenReturn(true);
+
+            // request type is BRANCH but category points at atm_crm
+            assertThatThrownBy(() -> service.create(createRequest("atm_crm"), "actor"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("does not match location type");
+
+            verify(jpaRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("defaults the category code to the type code when none is given")
         void defaultsCategoryToTypeCode() {
             when(jpaRepository.existsByNameIgnoreCase("Test Location")).thenReturn(false);
@@ -146,6 +161,31 @@ class LocationServiceTest {
             assertThatThrownBy(() -> service.update(existing.getId(), request, "editor"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Unknown or inactive category code");
+            verify(jpaRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("rejects a category code that does not match the immutable location type")
+        void rejectsCategoryMismatchingTypeOnUpdate() {
+            Location existing = Location.create(
+                    Location.Draft.builder()
+                            .name("Existing")
+                            .type(LocationType.BRANCH)
+                            .coordinate(new Coordinate(11.5, 104.9))
+                            .address(Address.builder().province("PP").build())
+                            .build(),
+                    "creator");
+            LocationEntity entity = entityMapper.toEntity(existing);
+            when(jpaRepository.findById(existing.getId())).thenReturn(Optional.of(entity));
+            when(categoryRepository.existsByCodeAndStatus("agent", StatusType.ACTIVE))
+                    .thenReturn(true);
+
+            UpdateLocationRequest request = new UpdateLocationRequest(
+                    null, null, null, null, null, null, null, null, null, null, null, null, "agent", null, null, null);
+
+            assertThatThrownBy(() -> service.update(existing.getId(), request, "editor"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("does not match location type");
             verify(jpaRepository, never()).save(any());
         }
     }

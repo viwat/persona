@@ -69,7 +69,7 @@ public class LocationService {
         if (jpaRepository.existsByNameIgnoreCase(request.name())) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
-        validateCategory(request.categoryCode());
+        validateCategory(request.type(), request.categoryCode());
 
         Coordinate coordinate = resolveCoordinate(request.coordinate(), request.contactInfo());
         String categoryCode = request.categoryCode() != null
@@ -112,7 +112,7 @@ public class LocationService {
                 && jpaRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
-        validateCategory(request.categoryCode());
+        validateCategory(existing.getType(), request.categoryCode());
 
         Coordinate coordinate = request.coordinate() != null ? toCoordinate(request.coordinate()) : null;
         Location.Draft patch = Location.Draft.builder()
@@ -473,10 +473,21 @@ public class LocationService {
         return ActionLink.builder().label(label).url(url).build();
     }
 
-    /** Rejects an unknown or inactive category code so locations only reference live categories. */
-    private void validateCategory(String categoryCode) {
-        if (categoryCode != null && !categoryRepository.existsByCodeAndStatus(categoryCode, StatusType.ACTIVE)) {
+    /**
+     * Rejects an unknown or inactive category code so locations only reference live categories.
+     * Also rejects a code that differs from the location type's code: category codes mirror
+     * LocationType codes during the enum→category transition, and silent drift between the two
+     * fields would corrupt type-based filtering. Lift this guard when categories become the
+     * single source of truth (v2 API).
+     */
+    private void validateCategory(LocationType type, String categoryCode) {
+        if (categoryCode == null) return;
+        if (!categoryRepository.existsByCodeAndStatus(categoryCode, StatusType.ACTIVE)) {
             throw new IllegalArgumentException("Unknown or inactive category code: " + categoryCode);
+        }
+        if (!categoryCode.equals(type.getCode())) {
+            throw new IllegalArgumentException("Category code '" + categoryCode
+                    + "' does not match location type '" + type.getCode() + "'");
         }
     }
 
