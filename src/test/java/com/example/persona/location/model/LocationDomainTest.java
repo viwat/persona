@@ -22,7 +22,7 @@ class LocationDomainTest {
     private static Location.Draft.DraftBuilder validDraft() {
         return Location.Draft.builder()
                 .name("  Wing Bank - Main  ")
-                .type(LocationType.BRANCH)
+                .type("branch")
                 .coordinate(coord())
                 .address(address());
     }
@@ -36,7 +36,6 @@ class LocationDomainTest {
         void setsDefaults() {
             Location.Draft draft = validDraft()
                     .availableServices(List.of("Transfer"))
-                    .categoryCode("branch")
                     .avgRating(4.5)
                     .action(ActionLink.builder().label("Open").url("https://x").build())
                     .build();
@@ -50,7 +49,7 @@ class LocationDomainTest {
             assertThat(location.getCreatedBy()).isEqualTo("actor-1");
             assertThat(location.getUpdatedBy()).isEqualTo("actor-1");
             assertThat(location.getCreatedAt()).isNotNull();
-            assertThat(location.getCategoryCode()).isEqualTo("branch");
+            assertThat(location.getType()).isEqualTo("branch");
             assertThat(location.getAvgRating()).isEqualTo(4.5);
             assertThat(location.getAction().getLabel()).isEqualTo("Open");
             assertThat(location.getAvailableServices()).containsExactly("Transfer");
@@ -85,16 +84,15 @@ class LocationDomainTest {
         @Test
         @DisplayName("null components leave existing values unchanged")
         void partialUpdateKeepsExisting() {
-            Location original = Location.create(
-                    validDraft().branchCode("BR1").categoryCode("branch").build(), "creator");
+            Location original =
+                    Location.create(validDraft().branchCode("BR1").build(), "creator");
 
             Location updated =
                     original.update(Location.Draft.builder().name("New Name").build(), "editor");
 
             assertThat(updated.getName()).isEqualTo("New Name");
             assertThat(updated.getBranchCode()).isEqualTo("BR1"); // unchanged
-            assertThat(updated.getCategoryCode()).isEqualTo("branch"); // unchanged
-            assertThat(updated.getType()).isEqualTo(LocationType.BRANCH); // unchanged
+            assertThat(updated.getType()).isEqualTo("branch"); // unchanged
             assertThat(updated.getUpdatedBy()).isEqualTo("editor");
             assertThat(updated.getCreatedBy()).isEqualTo("creator"); // preserved
             assertThat(updated.getId()).isEqualTo(original.getId());

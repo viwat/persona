@@ -50,7 +50,8 @@ com.example.persona.location/
                 LocationCategoryRepository, LocationTagRepository, AuditJpaRepository
   entity/       LocationEntity (table `locations`), AuditEventEntity (table `audit_events`)
   model/        Location (pure-Java aggregate: create/update/activate/deactivate/
-                closeTemporarily/reopen), LocationType, LocationStatus, Coordinate,
+                closeTemporarily/reopen; `type` is a String category code — the
+                LocationType enum was removed in V10), LocationStatus, Coordinate,
                 Address, ContactInfo, OpeningHours, ActionLink,
                 LocationCategory + LocationTag (JPA entities extending BaseModel,
                 multilingual via MultilingualContent _en/_km/_zh),
@@ -118,6 +119,7 @@ snake_case). The location envelope has **no traced_id** today — see "Remaining
 | V7 | `audit_events` table (JSONB snapshot) |
 | V8 | `dgtl_location_category`, `dgtl_location_tag`, `dgtl_location_category_tag` + seed of the 4 base categories (Khmer names) |
 | V9 | Extended location fields: facebook_url, image_url, branch_code, branch_name, atm_serial, **category_code FK → dgtl_location_category(code)** (ON UPDATE CASCADE / ON DELETE RESTRICT), avg_rating CHECK 0–5, action_label, action_url; backfills category_code from type |
+| V10 | **Data-driven location types**: drops the `chk_location_type` CHECK and the redundant `category_code` column; the FK moves onto `type` itself (→ dgtl_location_category.code). The LocationType enum was deleted from the code in the same change |
 
 ---
 
@@ -142,14 +144,18 @@ snake_case). The location envelope has **no traced_id** today — see "Remaining
   on ApplicationReadyEvent (async) and from POST /admin/search/reindex.
 - Every location write re-indexes the document; keep that in any new mutation path.
 
-### Category integrity
-- `locations.category_code` is a real FK; categories use **soft delete** (status → DELETED)
-  precisely so the RESTRICT FK never trips. Tags are hard-deleted (join rows cascade).
-- `LocationService` validates category code exists and is ACTIVE before create/update.
-- Category codes intentionally mirror `LocationType` codes (branch, atm_crm, agent,
-  master_agent) during the enum→category transition. `validateCategory` **rejects a
-  categoryCode that differs from the location's type code** — lift that guard only when
-  the v2 API makes categories the single source of truth and `type` becomes derived.
+### Category integrity — type IS the category (since V10)
+- There is **no LocationType enum**. `Location.type` is a String category code validated
+  against `dgtl_location_category` (must exist and be ACTIVE) on create. Admin-created
+  categories are usable immediately — never reintroduce a hardcoded type list.
+- `locations.type` has a real FK → dgtl_location_category(code); categories use
+  **soft delete** (status → DELETED) precisely so the RESTRICT FK never trips.
+  Tags are hard-deleted (join rows cascade).
+- `type` is immutable after create (no recategorize endpoint yet — delete & recreate).
+- Wire compat: responses still emit `categoryCode` (same value as `type`); requests
+  accept `categoryCode` as a deprecated alias that must equal `type` or the call is
+  rejected. `typeDisplayName` was removed from responses — clients get display names
+  from /api/v1/categories. Remove the alias with the v2 API.
 
 ### Domain invariants
 - `Location.create/update` enforce required name/type/coordinate/address and trimming —

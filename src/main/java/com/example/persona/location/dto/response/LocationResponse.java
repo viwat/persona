@@ -15,8 +15,8 @@ public record LocationResponse(
         UUID id,
         String name,
         String type,
-        String typeDisplayName,
         String status,
+        /** Same value as {@code type} — kept for wire compatibility while clients migrate. */
         String categoryCode,
         String branchCode,
         String branchName,
@@ -41,10 +41,9 @@ public record LocationResponse(
         return LocationResponse.builder()
                 .id(location.getId())
                 .name(location.getName())
-                .type(location.getType().getCode())
-                .typeDisplayName(location.getType().getDisplayName())
+                .type(location.getType())
                 .status(location.getStatus().name())
-                .categoryCode(location.getCategoryCode())
+                .categoryCode(location.getType())
                 .branchCode(location.getBranchCode())
                 .branchName(location.getBranchName())
                 .atmSerial(location.getAtmSerial())

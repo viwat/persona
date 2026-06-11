@@ -5,7 +5,6 @@ import com.example.persona.location.dto.response.LocationResponse;
 import com.example.persona.location.dto.response.PageResponse;
 import com.example.persona.location.exception.LocationNotFoundException;
 import com.example.persona.location.model.Coordinate;
-import com.example.persona.location.model.LocationType;
 import com.example.persona.location.service.LocationService;
 import io.micrometer.core.annotation.Timed;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +42,7 @@ public class LocationPublicController {
             description = "Returns active locations ordered by name. Supports pagination and optional type filter.")
     @Timed(value = "http.location.list")
     public ResponseEntity<ApiResponse<PageResponse<LocationResponse>>> getAll(
-            @RequestParam(required = false) List<LocationType> types,
+            @RequestParam(required = false) List<String> types,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size) {
         LocationService.SearchResult result = locationService.browse(types, page, size);
@@ -71,7 +70,7 @@ public class LocationPublicController {
     @Timed(value = "http.location.search")
     public ResponseEntity<ApiResponse<PageResponse<LocationResponse>>> search(
             @RequestParam(required = false) @Size(max = 200) String q,
-            @RequestParam(required = false) List<LocationType> types,
+            @RequestParam(required = false) List<String> types,
             @RequestParam(required = false) @Size(max = 100) String province,
             @RequestParam(required = false) @Size(max = 100) String district,
             @RequestParam(required = false) @Size(max = 100) String commune,
@@ -91,7 +90,7 @@ public class LocationPublicController {
             @RequestParam @DecimalMin("-90.0") @DecimalMax("90.0") double lat,
             @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double lon,
             @RequestParam(defaultValue = DEFAULT_NEARBY_RADIUS_KM) @DecimalMin("0.1") @DecimalMax("50.0") double radius,
-            @RequestParam(required = false) List<LocationType> types,
+            @RequestParam(required = false) List<String> types,
             @RequestParam(defaultValue = DEFAULT_NEARBY_LIMIT) @Min(1) @Max(100) int limit) {
         List<NearbyLocationResponse> results =
                 locationService.findNearby(new Coordinate(lat, lon), radius, types, limit).stream()
@@ -129,7 +128,7 @@ public class LocationPublicController {
             Double lon,
 
             @DecimalMin("0.1") @DecimalMax("50.0") Double radiusKm,
-            List<LocationType> types,
+            List<String> types,
             @Min(1) @Max(100) Integer limit) {}
 
     public record NearbyLocationResponse(LocationResponse location, double distanceKm) {}

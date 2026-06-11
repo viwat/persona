@@ -1,9 +1,7 @@
 package com.example.persona.location.config;
 
-import com.example.persona.location.model.LocationType;
 import com.example.persona.location.service.LocationSearchService;
 import com.example.persona.location.service.LocationService;
-import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -25,7 +23,7 @@ public class MeilisearchStartupIndexer {
         log.info("Starting Meilisearch startup configuration and reindex...");
         try {
             locationSearchService.configureIndex();
-            var locations = locationService.findAll(Arrays.asList(LocationType.values()));
+            var locations = locationService.findAll(null);
             locationSearchService.reindexAll(locations);
             log.info("Meilisearch startup reindex complete: {} locations indexed", locations.size());
         } catch (Exception e) {

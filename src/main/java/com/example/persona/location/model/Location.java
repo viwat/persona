@@ -18,7 +18,11 @@ public class Location {
 
     private final UUID id;
     private final String name;
-    private final LocationType type;
+    /**
+     * Category code referencing {@code LocationCategory} (e.g. {@code branch}, {@code atm_crm}).
+     * Data-driven: validated against the category table by the service layer, not an enum.
+     */
+    private final String type;
     private final Coordinate coordinate;
     private final Address address;
     private final ContactInfo contactInfo;
@@ -44,8 +48,6 @@ public class Location {
     private final String atmSerial;
 
     // ── Presentation metadata (FR-03) ──────────────────────────────────────────
-    /** Category code linking to a {@code LocationCategory} (FR-03: Category). */
-    private final String categoryCode;
     /** Average customer rating, 0.0–5.0 (FR-03: Avg Rating). May be null when unrated. */
     private final Double avgRating;
     /** Optional call-to-action button (FR-03: Action Label / Action URL). */
@@ -65,7 +67,7 @@ public class Location {
     @Builder(builderClassName = "DraftBuilder")
     public record Draft(
             String name,
-            LocationType type,
+            String type,
             Coordinate coordinate,
             Address address,
             ContactInfo contactInfo,
@@ -77,7 +79,6 @@ public class Location {
             String branchCode,
             String branchName,
             String atmSerial,
-            String categoryCode,
             Double avgRating,
             ActionLink action) {}
 
@@ -94,7 +95,7 @@ public class Location {
         return Location.builder()
                 .id(UUID.randomUUID())
                 .name(draft.name().trim())
-                .type(draft.type())
+                .type(draft.type().trim())
                 .coordinate(draft.coordinate())
                 .address(draft.address())
                 .contactInfo(draft.contactInfo())
@@ -106,7 +107,6 @@ public class Location {
                 .branchCode(draft.branchCode())
                 .branchName(draft.branchName())
                 .atmSerial(draft.atmSerial())
-                .categoryCode(draft.categoryCode())
                 .avgRating(draft.avgRating())
                 .action(draft.action())
                 .status(LocationStatus.ACTIVE)
@@ -139,7 +139,6 @@ public class Location {
                 .branchCode(patch.branchCode() != null ? patch.branchCode() : this.branchCode)
                 .branchName(patch.branchName() != null ? patch.branchName() : this.branchName)
                 .atmSerial(patch.atmSerial() != null ? patch.atmSerial() : this.atmSerial)
-                .categoryCode(patch.categoryCode() != null ? patch.categoryCode() : this.categoryCode)
                 .avgRating(patch.avgRating() != null ? patch.avgRating() : this.avgRating)
                 .action(patch.action() != null ? patch.action() : this.action)
                 .updatedBy(actor)

@@ -3,7 +3,6 @@ package com.example.persona.location.service;
 import com.example.persona.location.document.LocationDocument;
 import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
-import com.example.persona.location.model.LocationType;
 import com.meilisearch.sdk.Client;
 import com.meilisearch.sdk.Index;
 import com.meilisearch.sdk.SearchRequest;
@@ -65,7 +64,7 @@ public class LocationSearchService {
     @Retry(name = "meilisearch")
     public SearchIndexResult search(
             String text,
-            List<LocationType> types,
+            List<String> types,
             String province,
             String district,
             String commune,
@@ -96,7 +95,7 @@ public class LocationSearchService {
 
     @CircuitBreaker(name = "meilisearch")
     @Retry(name = "meilisearch")
-    public List<NearbyIndexResult> findNearby(Coordinate center, double radiusKm, List<LocationType> types, int limit) {
+    public List<NearbyIndexResult> findNearby(Coordinate center, double radiusKm, List<String> types, int limit) {
         try {
             Index index = meilisearchClient.index(indexName);
             double radiusMeters = radiusKm * 1000.0;
@@ -180,23 +179,23 @@ public class LocationSearchService {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private String buildNearbyFilter(String geoFilter, List<LocationType> types) {
+    private String buildNearbyFilter(String geoFilter, List<String> types) {
         StringBuilder filter = new StringBuilder(geoFilter);
         appendFilter(filter, "status = \"ACTIVE\"");
         if (types != null && !types.isEmpty()) {
             String typeFilter = types.stream()
-                    .map(t -> "type = \"" + t.getCode() + "\"")
+                    .map(t -> "type = \"" + escape(t) + "\"")
                     .collect(Collectors.joining(" OR ", "(", ")"));
             appendFilter(filter, typeFilter);
         }
         return filter.toString();
     }
 
-    private String buildFilter(List<LocationType> types, String province, String district, String commune) {
+    private String buildFilter(List<String> types, String province, String district, String commune) {
         StringBuilder filter = new StringBuilder();
         if (types != null && !types.isEmpty()) {
             String typeFilter = types.stream()
-                    .map(t -> "type = \"" + t.getCode() + "\"")
+                    .map(t -> "type = \"" + escape(t) + "\"")
                     .collect(Collectors.joining(" OR ", "(", ")"));
             filter.append(typeFilter);
         }
