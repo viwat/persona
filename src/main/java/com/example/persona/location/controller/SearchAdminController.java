@@ -1,12 +1,10 @@
 package com.example.persona.location.controller;
 
 import com.example.persona.location.dto.response.ApiResponse;
-import com.example.persona.location.model.LocationType;
 import com.example.persona.location.service.LocationSearchService;
 import com.example.persona.location.service.LocationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +27,7 @@ public class SearchAdminController {
     public ResponseEntity<ApiResponse<String>> reindex() {
         log.info("Starting full Meilisearch reindex...");
         locationSearchService.configureIndex();
-        var allLocations = locationService.findAll(Arrays.asList(LocationType.values()));
+        var allLocations = locationService.findAll(null);
         locationSearchService.reindexAll(allLocations);
         String message = String.format("Reindexed %d locations", allLocations.size());
         log.info(message);

@@ -107,9 +107,6 @@ public class LocationEntity {
 
     // ── Presentation metadata (FR-03) ──────────────────────────────────────────
 
-    @Column(name = "category_code", length = 100)
-    private String categoryCode;
-
     @Column(name = "avg_rating")
     private Double avgRating;
 

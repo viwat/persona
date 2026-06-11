@@ -7,7 +7,6 @@ import com.example.persona.location.model.ContactInfo;
 import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
 import com.example.persona.location.model.LocationStatus;
-import com.example.persona.location.model.LocationType;
 import com.example.persona.location.model.OpeningHours;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
@@ -25,7 +24,7 @@ public class LocationEntityMapper {
         return LocationEntity.builder()
                 .id(domain.getId())
                 .name(domain.getName())
-                .type(domain.getType().getCode())
+                .type(domain.getType())
                 .status(domain.getStatus().name())
                 .latitude(domain.getCoordinate().getLatitude())
                 .longitude(domain.getCoordinate().getLongitude())
@@ -48,7 +47,6 @@ public class LocationEntityMapper {
                 .branchCode(domain.getBranchCode())
                 .branchName(domain.getBranchName())
                 .atmSerial(domain.getAtmSerial())
-                .categoryCode(domain.getCategoryCode())
                 .avgRating(domain.getAvgRating())
                 .actionLabel(action != null ? action.getLabel() : null)
                 .actionUrl(action != null ? action.getUrl() : null)
@@ -69,7 +67,7 @@ public class LocationEntityMapper {
         return Location.builder()
                 .id(entity.getId())
                 .name(entity.getName())
-                .type(LocationType.fromCode(entity.getType()))
+                .type(entity.getType())
                 .status(LocationStatus.valueOf(entity.getStatus()))
                 .coordinate(new Coordinate(entity.getLatitude(), entity.getLongitude()))
                 .address(Address.builder()
@@ -92,7 +90,6 @@ public class LocationEntityMapper {
                 .branchCode(entity.getBranchCode())
                 .branchName(entity.getBranchName())
                 .atmSerial(entity.getAtmSerial())
-                .categoryCode(entity.getCategoryCode())
                 .avgRating(entity.getAvgRating())
                 .action(toActionLink(entity.getActionLabel(), entity.getActionUrl()))
                 .temporarilyClosed(entity.isTemporarilyClosed())
@@ -119,7 +116,7 @@ public class LocationEntityMapper {
      */
     public void updateEntity(LocationEntity entity, Location domain) {
         entity.setName(domain.getName());
-        entity.setType(domain.getType().getCode());
+        entity.setType(domain.getType());
         entity.setStatus(domain.getStatus().name());
         entity.setLatitude(domain.getCoordinate().getLatitude());
         entity.setLongitude(domain.getCoordinate().getLongitude());
@@ -145,7 +142,6 @@ public class LocationEntityMapper {
         entity.setBranchCode(domain.getBranchCode());
         entity.setBranchName(domain.getBranchName());
         entity.setAtmSerial(domain.getAtmSerial());
-        entity.setCategoryCode(domain.getCategoryCode());
         entity.setAvgRating(domain.getAvgRating());
         entity.setActionLabel(domain.getAction() != null ? domain.getAction().getLabel() : null);
         entity.setActionUrl(domain.getAction() != null ? domain.getAction().getUrl() : null);

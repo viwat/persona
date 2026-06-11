@@ -15,6 +15,11 @@ public interface LocationJpaRepository extends JpaRepository<LocationEntity, UUI
 
     Page<LocationEntity> findByTypeInAndStatus(List<String> types, String status, Pageable pageable);
 
+    /** "All types" browse — types are data-driven (category codes), so no enum to expand. */
+    List<LocationEntity> findByStatus(String status);
+
+    Page<LocationEntity> findByStatus(String status, Pageable pageable);
+
     boolean existsByNameIgnoreCase(String name);
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);

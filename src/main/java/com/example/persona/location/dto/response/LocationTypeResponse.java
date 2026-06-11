@@ -4,11 +4,11 @@ import java.util.List;
 import lombok.Builder;
 
 /**
- * FR-03 Category projection returned by the category endpoints.
+ * FR-03 Location type projection returned by the location-type endpoints.
  * camelCase to stay consistent with the rest of the location module's responses.
  */
 @Builder
-public record CategoryResponse(
+public record LocationTypeResponse(
         String code,
         String name,
         String nameKhmer,

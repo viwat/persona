@@ -24,7 +24,6 @@ public class LocationDocument {
     private String id; // UUID as string (Meilisearch primary key)
     private String name;
     private String type;
-    private String typeDisplayName;
     private String status;
 
     // Address fields indexed individually for filter/facet
@@ -43,7 +42,9 @@ public class LocationDocument {
     private double longitude;
 
     // Category & source-system identifiers (FR-02 branch search, category filter)
+    /** Mirror of {@link #type} — kept so existing index filters on categoryCode keep working. */
     private String categoryCode;
+
     private String branchCode;
     private String branchName;
     private String atmSerial;
@@ -110,8 +111,7 @@ public class LocationDocument {
         return LocationDocument.builder()
                 .id(location.getId().toString())
                 .name(location.getName())
-                .type(location.getType().getCode())
-                .typeDisplayName(location.getType().getDisplayName())
+                .type(location.getType())
                 .status(location.getStatus().name())
                 .street(location.getAddress().getStreet())
                 .commune(location.getAddress().getCommune())
@@ -124,7 +124,7 @@ public class LocationDocument {
                         location.getCoordinate().getLongitude()))
                 .latitude(location.getCoordinate().getLatitude())
                 .longitude(location.getCoordinate().getLongitude())
-                .categoryCode(location.getCategoryCode())
+                .categoryCode(location.getType())
                 .branchCode(location.getBranchCode())
                 .branchName(location.getBranchName())
                 .atmSerial(location.getAtmSerial())

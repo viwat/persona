@@ -1,7 +1,6 @@
 package com.example.persona.location.service;
 
 import com.example.persona.location.model.Location;
-import com.example.persona.location.model.LocationType;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -74,7 +73,7 @@ public class LocationCacheService {
     }
 
     @CircuitBreaker(name = "redis", fallbackMethod = "getAllByTypesFallback")
-    public Optional<List<Location>> getAllByTypes(List<LocationType> types) {
+    public Optional<List<Location>> getAllByTypes(List<String> types) {
         try {
             String json = redisTemplate.opsForValue().get(buildAllKey(types));
             if (json == null) return Optional.empty();
@@ -86,7 +85,7 @@ public class LocationCacheService {
     }
 
     @CircuitBreaker(name = "redis", fallbackMethod = "putAllByTypesFallback")
-    public void putAllByTypes(List<LocationType> types, List<Location> locations) {
+    public void putAllByTypes(List<String> types, List<Location> locations) {
         try {
             redisTemplate
                     .opsForValue()
@@ -129,7 +128,7 @@ public class LocationCacheService {
         return Optional.empty();
     }
 
-    public Optional<List<Location>> getAllByTypesFallback(List<LocationType> types, Throwable t) {
+    public Optional<List<Location>> getAllByTypesFallback(List<String> types, Throwable t) {
         log.warn("Redis circuit open for getAllByTypes: {}", t.getMessage());
         return Optional.empty();
     }
@@ -142,7 +141,7 @@ public class LocationCacheService {
         log.warn("Redis circuit open — skipping evictById({}): {}", id, t.getMessage());
     }
 
-    public void putAllByTypesFallback(List<LocationType> types, List<Location> locations, Throwable t) {
+    public void putAllByTypesFallback(List<String> types, List<Location> locations, Throwable t) {
         log.warn("Redis circuit open — skipping putAllByTypes: {}", t.getMessage());
     }
 
@@ -152,9 +151,9 @@ public class LocationCacheService {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private String buildAllKey(List<LocationType> types) {
+    private String buildAllKey(List<String> types) {
         if (types == null || types.isEmpty()) return KEY_PREFIX_ALL + "ALL";
-        String typeKey = types.stream().map(LocationType::getCode).sorted().reduce("", (a, b) -> a + "_" + b);
+        String typeKey = types.stream().sorted().reduce("", (a, b) -> a + "_" + b);
         return KEY_PREFIX_ALL + typeKey;
     }
 }

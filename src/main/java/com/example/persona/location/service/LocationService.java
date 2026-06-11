@@ -15,9 +15,8 @@ import com.example.persona.location.model.ContactInfo;
 import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
 import com.example.persona.location.model.LocationStatus;
-import com.example.persona.location.model.LocationType;
 import com.example.persona.location.model.OpeningHours;
-import com.example.persona.location.repository.LocationCategoryRepository;
+import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.location.repository.LocationJpaRepository;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -46,7 +45,7 @@ public class LocationService {
     private static final double METERS_PER_KM = 1000.0;
 
     private final LocationJpaRepository jpaRepository;
-    private final LocationCategoryRepository categoryRepository;
+    private final LocationTypeRepository categoryRepository;
     private final LocationEntityMapper entityMapper;
     private final LocationSearchService searchService;
     private final LocationCacheService cacheService;
@@ -69,15 +68,14 @@ public class LocationService {
         if (jpaRepository.existsByNameIgnoreCase(request.name())) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
-        validateCategory(request.categoryCode());
+        String type = request.type().trim();
+        validateType(type);
+        rejectCategoryAliasMismatch(type, request.categoryCode());
 
         Coordinate coordinate = resolveCoordinate(request.coordinate(), request.contactInfo());
-        String categoryCode = request.categoryCode() != null
-                ? request.categoryCode()
-                : request.type().getCode();
         Location.Draft draft = Location.Draft.builder()
                 .name(request.name())
-                .type(request.type())
+                .type(type)
                 .coordinate(coordinate)
                 .address(toAddress(request.address()))
                 .contactInfo(toContactInfo(request.contactInfo()))
@@ -89,7 +87,6 @@ public class LocationService {
                 .branchCode(request.branchCode())
                 .branchName(request.branchName())
                 .atmSerial(request.atmSerial())
-                .categoryCode(categoryCode)
                 .avgRating(request.avgRating())
                 .action(toActionLink(request.actionLabel(), request.actionUrl()))
                 .build();
@@ -112,7 +109,7 @@ public class LocationService {
                 && jpaRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
             throw new LocationDuplicateException("Location with name '" + request.name() + "' already exists");
         }
-        validateCategory(request.categoryCode());
+        rejectCategoryAliasMismatch(existing.getType(), request.categoryCode());
 
         Coordinate coordinate = request.coordinate() != null ? toCoordinate(request.coordinate()) : null;
         Location.Draft patch = Location.Draft.builder()
@@ -128,7 +125,6 @@ public class LocationService {
                 .branchCode(request.branchCode())
                 .branchName(request.branchName())
                 .atmSerial(request.atmSerial())
-                .categoryCode(request.categoryCode())
                 .avgRating(request.avgRating())
                 .action(toActionLink(request.actionLabel(), request.actionUrl()))
                 .build();
@@ -239,13 +235,11 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     @Timed(value = "location.query.browse")
-    public SearchResult browse(List<LocationType> types, int page, int size) {
-        List<LocationType> effective =
-                (types == null || types.isEmpty()) ? Arrays.asList(LocationType.values()) : types;
-        List<String> codes = effective.stream().map(LocationType::getCode).collect(Collectors.toList());
+    public SearchResult browse(List<String> types, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        Page<LocationEntity> result =
-                jpaRepository.findByTypeInAndStatus(codes, LocationStatus.ACTIVE.name(), pageable);
+        Page<LocationEntity> result = (types == null || types.isEmpty())
+                ? jpaRepository.findByStatus(LocationStatus.ACTIVE.name(), pageable)
+                : jpaRepository.findByTypeInAndStatus(types, LocationStatus.ACTIVE.name(), pageable);
         List<Location> content =
                 result.getContent().stream().map(entityMapper::toDomain).toList();
         return new SearchResult(content, result.getTotalElements(), page, size);
@@ -253,20 +247,19 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     @Timed(value = "location.query.findAll")
-    public List<Location> findAll(List<LocationType> types) {
-        List<LocationType> effective =
-                (types == null || types.isEmpty()) ? Arrays.asList(LocationType.values()) : types;
-        Optional<List<Location>> cached = cacheService.getAllByTypes(effective);
+    public List<Location> findAll(List<String> types) {
+        Optional<List<Location>> cached = cacheService.getAllByTypes(types);
         if (cached.isPresent()) {
             meterRegistry.counter("location.cache.hit", "operation", "findAll").increment();
             return cached.get();
         }
         meterRegistry.counter("location.cache.miss", "operation", "findAll").increment();
-        List<String> codes = effective.stream().map(LocationType::getCode).collect(Collectors.toList());
-        List<Location> locations = jpaRepository.findByTypeInAndStatus(codes, LocationStatus.ACTIVE.name()).stream()
-                .map(entityMapper::toDomain)
-                .collect(Collectors.toList());
-        cacheService.putAllByTypes(effective, locations);
+        List<LocationEntity> entities = (types == null || types.isEmpty())
+                ? jpaRepository.findByStatus(LocationStatus.ACTIVE.name())
+                : jpaRepository.findByTypeInAndStatus(types, LocationStatus.ACTIVE.name());
+        List<Location> locations =
+                entities.stream().map(entityMapper::toDomain).collect(Collectors.toList());
+        cacheService.putAllByTypes(types, locations);
         return locations;
     }
 
@@ -274,7 +267,7 @@ public class LocationService {
     @Timed(value = "location.query.search")
     public SearchResult search(
             String text,
-            List<LocationType> types,
+            List<String> types,
             String province,
             String district,
             String commune,
@@ -299,7 +292,7 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     @Timed(value = "location.query.nearby")
-    public List<NearbyResult> findNearby(Coordinate center, double radiusKm, List<LocationType> types, int limit) {
+    public List<NearbyResult> findNearby(Coordinate center, double radiusKm, List<String> types, int limit) {
         try {
             List<LocationSearchService.NearbyIndexResult> indexResults =
                     searchService.findNearby(center, radiusKm, types, limit);
@@ -346,7 +339,7 @@ public class LocationService {
 
     private SearchResult searchFallback(
             String text,
-            List<LocationType> types,
+            List<String> types,
             String province,
             String district,
             String commune,
@@ -372,7 +365,7 @@ public class LocationService {
     }
 
     private List<NearbyResult> findNearbyFallback(
-            Coordinate center, double radiusKm, List<LocationType> types, int limit) {
+            Coordinate center, double radiusKm, List<String> types, int limit) {
         String typesArray = toPostgresArray(types);
         double radiusMeters = radiusKm * METERS_PER_KM;
         double deltaLat = radiusKm / KM_PER_DEGREE_LAT;
@@ -473,10 +466,24 @@ public class LocationService {
         return ActionLink.builder().label(label).url(url).build();
     }
 
-    /** Rejects an unknown or inactive category code so locations only reference live categories. */
-    private void validateCategory(String categoryCode) {
-        if (categoryCode != null && !categoryRepository.existsByCodeAndStatus(categoryCode, StatusType.ACTIVE)) {
-            throw new IllegalArgumentException("Unknown or inactive category code: " + categoryCode);
+    /**
+     * The type IS the category: data-driven, validated against the category table instead of an
+     * enum, so admin-created categories are usable immediately without a code change.
+     */
+    private void validateType(String type) {
+        if (!categoryRepository.existsByCodeAndStatus(type, StatusType.ACTIVE)) {
+            throw new IllegalArgumentException("Unknown or inactive location type: " + type);
+        }
+    }
+
+    /**
+     * {@code categoryCode} survives in requests only as a deprecated alias of {@code type};
+     * a differing value is almost certainly a client bug, so fail loudly instead of guessing.
+     */
+    private void rejectCategoryAliasMismatch(String type, String categoryCode) {
+        if (categoryCode != null && !categoryCode.trim().equals(type)) {
+            throw new IllegalArgumentException(
+                    "categoryCode '" + categoryCode + "' does not match type '" + type + "'");
         }
     }
 
@@ -497,9 +504,9 @@ public class LocationService {
                 .build();
     }
 
-    private String toPostgresArray(List<LocationType> types) {
+    private String toPostgresArray(List<String> types) {
         if (types == null || types.isEmpty()) return null;
-        return types.stream().map(LocationType::getCode).collect(Collectors.joining(",", "{", "}"));
+        return types.stream().collect(Collectors.joining(",", "{", "}"));
     }
 
     private String emptyToNull(String value) {

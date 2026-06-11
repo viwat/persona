@@ -1,7 +1,6 @@
 package com.example.persona.location.dto.request;
 
 import com.example.persona.location.mapper.GoogleMapsUrlParser;
-import com.example.persona.location.model.LocationType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.DayOfWeek;
@@ -22,7 +21,10 @@ public sealed interface LocationRequest
             @Size(min = 2, max = 255, message = "name must be between 2 and 255 characters")
             String name,
 
-            @NotNull(message = "type is required") LocationType type,
+            /** Category code from dgtl_location_category (e.g. "branch") — must be ACTIVE. */
+            @NotBlank(message = "type is required")
+            @Size(max = 100, message = "type must not exceed 100 characters")
+            String type,
 
             @Valid CoordinateDto coordinate,
 
@@ -59,6 +61,7 @@ public sealed interface LocationRequest
             @Size(max = 100, message = "atmSerial must not exceed 100 characters")
             String atmSerial,
 
+            /** Deprecated alias of {@code type} — if present it must match; will be removed in v2. */
             @Size(max = 100, message = "categoryCode must not exceed 100 characters")
             String categoryCode,
 
@@ -126,6 +129,7 @@ public sealed interface LocationRequest
             @Size(max = 100, message = "atmSerial must not exceed 100 characters")
             String atmSerial,
 
+            /** Deprecated alias of {@code type} — if present it must match; will be removed in v2. */
             @Size(max = 100, message = "categoryCode must not exceed 100 characters")
             String categoryCode,
 

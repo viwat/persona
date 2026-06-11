@@ -5,12 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.example.persona.enums.StatusType;
-import com.example.persona.location.exception.CategoryNotFoundException;
-import com.example.persona.location.mapper.LocationCategoryMapper;
-import com.example.persona.location.model.LocationCategory;
+import com.example.persona.location.exception.LocationTypeNotFoundException;
+import com.example.persona.location.mapper.LocationTypeMapper;
 import com.example.persona.location.model.LocationTag;
-import com.example.persona.location.repository.LocationCategoryRepository;
+import com.example.persona.location.model.LocationType;
 import com.example.persona.location.repository.LocationTagRepository;
+import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.model.MultilingualContent;
 import java.util.List;
 import java.util.Optional;
@@ -22,54 +22,55 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CategoryService")
-class CategoryServiceTest {
+@DisplayName("LocationTypeService")
+class LocationTypeServiceTest {
 
     @Mock
-    private LocationCategoryRepository categoryRepository;
+    private LocationTypeRepository locationTypeRepository;
 
     @Mock
     private LocationTagRepository tagRepository;
 
-    private CategoryService service;
+    private LocationTypeService service;
 
     @BeforeEach
     void setUp() {
-        service = new CategoryService(categoryRepository, tagRepository, new LocationCategoryMapper());
+        service = new LocationTypeService(locationTypeRepository, tagRepository, new LocationTypeMapper());
     }
 
-    private static LocationCategory category(String code, String name) {
-        return LocationCategory.builder()
+    private static LocationType locationType(String code, String name) {
+        return LocationType.builder()
                 .code(code)
                 .name(MultilingualContent.builder().en(name).build())
                 .build();
     }
 
     @Test
-    @DisplayName("listCategories maps active categories")
-    void listCategories() {
-        when(categoryRepository.findAllByStatusWithTags(StatusType.ACTIVE))
-                .thenReturn(List.of(category("branch", "Branch"), category("agent", "Agent")));
+    @DisplayName("listLocationTypes maps active types")
+    void listLocationTypes() {
+        when(locationTypeRepository.findAllByStatusWithTags(StatusType.ACTIVE))
+                .thenReturn(List.of(locationType("branch", "Branch"), locationType("agent", "Agent")));
 
-        var result = service.listCategories();
+        var result = service.listLocationTypes();
 
         assertThat(result).extracting("code").containsExactly("branch", "agent");
     }
 
     @Test
-    @DisplayName("getByCode returns the category when found")
+    @DisplayName("getByCode returns the type when found")
     void getByCodeFound() {
-        when(categoryRepository.findByCode("branch")).thenReturn(Optional.of(category("branch", "Branch")));
+        when(locationTypeRepository.findByCode("branch"))
+                .thenReturn(Optional.of(locationType("branch", "Branch")));
         assertThat(service.getByCode("branch").name()).isEqualTo("Branch");
     }
 
     @Test
     @DisplayName("getByCode throws when missing")
     void getByCodeMissing() {
-        when(categoryRepository.findByCode("nope")).thenReturn(Optional.empty());
+        when(locationTypeRepository.findByCode("nope")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.getByCode("nope"))
-                .isInstanceOf(CategoryNotFoundException.class)
-                .hasMessageContaining("Category not found: nope");
+                .isInstanceOf(LocationTypeNotFoundException.class)
+                .hasMessageContaining("Location type not found: nope");
     }
 
     @Test
@@ -89,7 +90,7 @@ class CategoryServiceTest {
     void getTagMissing() {
         when(tagRepository.findByCode("nope")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.getTag("nope"))
-                .isInstanceOf(CategoryNotFoundException.class)
+                .isInstanceOf(LocationTypeNotFoundException.class)
                 .hasMessageContaining("Tag not found: nope");
     }
 }
