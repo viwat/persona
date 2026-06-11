@@ -16,7 +16,7 @@ import com.example.persona.location.mapper.LocationEntityMapper;
 import com.example.persona.location.model.Address;
 import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
-import com.example.persona.location.repository.LocationCategoryRepository;
+import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.location.repository.LocationJpaRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
@@ -37,7 +37,7 @@ class LocationServiceTest {
     private LocationJpaRepository jpaRepository;
 
     @Mock
-    private LocationCategoryRepository categoryRepository;
+    private LocationTypeRepository categoryRepository;
 
     @Mock
     private LocationSearchService searchService;

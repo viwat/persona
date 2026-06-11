@@ -16,7 +16,7 @@ import com.example.persona.location.model.Coordinate;
 import com.example.persona.location.model.Location;
 import com.example.persona.location.model.LocationStatus;
 import com.example.persona.location.model.OpeningHours;
-import com.example.persona.location.repository.LocationCategoryRepository;
+import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.location.repository.LocationJpaRepository;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -45,7 +45,7 @@ public class LocationService {
     private static final double METERS_PER_KM = 1000.0;
 
     private final LocationJpaRepository jpaRepository;
-    private final LocationCategoryRepository categoryRepository;
+    private final LocationTypeRepository categoryRepository;
     private final LocationEntityMapper entityMapper;
     private final LocationSearchService searchService;
     private final LocationCacheService cacheService;

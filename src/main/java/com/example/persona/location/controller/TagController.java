@@ -2,7 +2,7 @@ package com.example.persona.location.controller;
 
 import com.example.persona.location.dto.response.ApiResponse;
 import com.example.persona.location.dto.response.TagResponse;
-import com.example.persona.location.service.CategoryService;
+import com.example.persona.location.service.LocationTypeService;
 import io.micrometer.core.annotation.Timed;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,19 +23,19 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Location - Categories", description = "Location categories and tags for locator filters")
 public class TagController {
 
-    private final CategoryService categoryService;
+    private final LocationTypeService locationTypeService;
 
     @GetMapping
     @Operation(summary = "List location tags")
     @Timed(value = "http.location.tags.list")
     public ResponseEntity<ApiResponse<List<TagResponse>>> list() {
-        return ResponseEntity.ok(ApiResponse.ok(categoryService.listTags()));
+        return ResponseEntity.ok(ApiResponse.ok(locationTypeService.listTags()));
     }
 
     @GetMapping("/{code}")
     @Operation(summary = "Get a single tag by code")
     @Timed(value = "http.location.tags.get")
     public ResponseEntity<ApiResponse<TagResponse>> get(@PathVariable String code) {
-        return ResponseEntity.ok(ApiResponse.ok(categoryService.getTag(code)));
+        return ResponseEntity.ok(ApiResponse.ok(locationTypeService.getTag(code)));
     }
 }

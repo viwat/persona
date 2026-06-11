@@ -47,28 +47,28 @@ com.example.persona.location/
                 CategoryService (read), CategoryAdminService (write),
                 AuditService, StorageService (S3 upload/delete)
   repository/   LocationJpaRepository (Haversine native query, ILIKE full-text fallback),
-                LocationCategoryRepository, LocationTagRepository, AuditJpaRepository
+                LocationTypeRepository, LocationTagRepository, AuditJpaRepository
   entity/       LocationEntity (table `locations`), AuditEventEntity (table `audit_events`)
   model/        Location (pure-Java aggregate: create/update/activate/deactivate/
                 closeTemporarily/reopen; `type` is a String category code — the
                 LocationType enum was removed in V10), LocationStatus, Coordinate,
                 Address, ContactInfo, OpeningHours, ActionLink,
-                LocationCategory + LocationTag (JPA entities extending BaseModel,
+                LocationType + LocationTag (JPA entities extending BaseModel,
                 multilingual via MultilingualContent _en/_km/_zh),
                 AuditEvent, AuditAction
   document/     LocationDocument (flat Meilisearch doc, `_geo` point, `searchText` boost field)
-  dto/          request/ (Create/Update/CloseLocationRequest, CategoryUpsertRequest,
+  dto/          request/ (Create/Update/CloseLocationRequest, LocationTypeUpsertRequest,
                 TagUpsertRequest), response/ (ApiResponse, PageResponse, LocationResponse,
-                CategoryResponse, TagResponse)
-  mapper/       LocationEntityMapper, LocationCategoryMapper, GoogleMapsUrlParser
-  exception/    LocationNotFoundException, LocationDuplicateException, CategoryNotFoundException
+                LocationTypeResponse, TagResponse)
+  mapper/       LocationEntityMapper, LocationTypeMapper, GoogleMapsUrlParser
+  exception/    LocationNotFoundException, LocationDuplicateException, LocationTypeNotFoundException
   config/       S3Config, RequestLoggingFilter (X-Request-ID), MeilisearchStartupIndexer,
                 MeilisearchHealthIndicator, OpenApiConfig
 ```
 
 Mixed persistence styles, intentionally:
 - `Location` is a **pure domain model** mapped to `LocationEntity` by `LocationEntityMapper`.
-- `LocationCategory` / `LocationTag` are **direct JPA entities** following the host app's
+- `LocationType` / `LocationTag` are **direct JPA entities** following the host app's
   `BaseModel` + `MultilingualContent` conventions (BIGINT identity ids, `dgtl_` table prefix,
   auditing columns, `StatusType` status, optimistic `version`).
 
@@ -117,9 +117,10 @@ snake_case). The location envelope has **no traced_id** today — see "Remaining
 | V5 | `logo_url`, `cover_url` (S3 images) |
 | V6 | `temporarily_closed`, `closed_until`, `created_by`, `updated_by` |
 | V7 | `audit_events` table (JSONB snapshot) |
-| V8 | `dgtl_location_category`, `dgtl_location_tag`, `dgtl_location_category_tag` + seed of the 4 base categories (Khmer names) |
+| V8 | `dgtl_location_category`, `dgtl_location_tag`, `dgtl_location_category_tag` + seed of the 4 base types (Khmer names) |
 | V9 | Extended location fields: facebook_url, image_url, branch_code, branch_name, atm_serial, **category_code FK → dgtl_location_category(code)** (ON UPDATE CASCADE / ON DELETE RESTRICT), avg_rating CHECK 0–5, action_label, action_url; backfills category_code from type |
 | V10 | **Data-driven location types**: drops the `chk_location_type` CHECK and the redundant `category_code` column; the FK moves onto `type` itself (→ dgtl_location_category.code). The LocationType enum was deleted from the code in the same change |
+| V11 | **Schema rename**: `dgtl_location_category` → `dgtl_location_type`, `dgtl_location_category_tag` → `dgtl_location_type_tag`; renames constraints and indexes to match |
 
 ---
 
@@ -144,11 +145,11 @@ snake_case). The location envelope has **no traced_id** today — see "Remaining
   on ApplicationReadyEvent (async) and from POST /admin/search/reindex.
 - Every location write re-indexes the document; keep that in any new mutation path.
 
-### Category integrity — type IS the category (since V10)
-- There is **no LocationType enum**. `Location.type` is a String category code validated
-  against `dgtl_location_category` (must exist and be ACTIVE) on create. Admin-created
-  categories are usable immediately — never reintroduce a hardcoded type list.
-- `locations.type` has a real FK → dgtl_location_category(code); categories use
+### Location type integrity (since V10/V11)
+- There is **no LocationType enum**. `Location.type` is a String code validated
+  against `dgtl_location_type` (must exist and be ACTIVE) on create. Admin-created
+  types are usable immediately — never reintroduce a hardcoded type list.
+- `locations.type` has a real FK → dgtl_location_type(code); types use
   **soft delete** (status → DELETED) precisely so the RESTRICT FK never trips.
   Tags are hard-deleted (join rows cascade).
 - `type` is immutable after create (no recategorize endpoint yet — delete & recreate).

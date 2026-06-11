@@ -19,7 +19,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * A label that can be attached to a {@link LocationCategory} (FR-03 Tag).
+ * A label that can be attached to a {@link LocationType} (FR-03 Tag).
  * Multilingual name is stored via the shared {@link MultilingualContent} embeddable.
  */
 @Entity

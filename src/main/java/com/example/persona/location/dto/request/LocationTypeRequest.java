@@ -5,11 +5,11 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.hibernate.validator.constraints.URL;
 
-/** Admin write models for location categories and tags (FR-03 Website Locator Management). */
-public interface CategoryRequest {
+/** Admin write models for location types and tags (FR-03 Website Locator Management). */
+public interface LocationTypeRequest {
 
-    /** Create/replace a category. On update the {@code code} comes from the path and the body code is ignored. */
-    record CategoryUpsertRequest(
+    /** Create/replace a location type. On update the {@code code} comes from the path; body code is ignored. */
+    record LocationTypeUpsertRequest(
             @NotBlank(message = "code is required") @Size(max = 100, message = "code must not exceed 100 characters")
             String code,
 
@@ -35,7 +35,7 @@ public interface CategoryRequest {
             int displayOrder,
 
             List<@NotBlank(message = "tag code must not be blank") String> tagCodes)
-            implements CategoryRequest {}
+            implements LocationTypeRequest {}
 
     record TagUpsertRequest(
             @NotBlank(message = "code is required") @Size(max = 100, message = "code must not exceed 100 characters")
@@ -46,5 +46,5 @@ public interface CategoryRequest {
 
             @Size(max = 255, message = "nameKhmer must not exceed 255 characters")
             String nameKhmer)
-            implements CategoryRequest {}
+            implements LocationTypeRequest {}
 }

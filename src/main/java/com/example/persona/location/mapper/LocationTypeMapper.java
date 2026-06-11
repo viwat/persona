@@ -1,9 +1,9 @@
 package com.example.persona.location.mapper;
 
-import com.example.persona.location.dto.response.CategoryResponse;
+import com.example.persona.location.dto.response.LocationTypeResponse;
 import com.example.persona.location.dto.response.TagResponse;
-import com.example.persona.location.model.LocationCategory;
 import com.example.persona.location.model.LocationTag;
+import com.example.persona.location.model.LocationType;
 import com.example.persona.model.MultilingualContent;
 import java.util.Comparator;
 import java.util.List;
@@ -11,21 +11,21 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
-/** Maps {@link LocationCategory}/{@link LocationTag} entities to their response DTOs. */
+/** Maps {@link LocationType}/{@link LocationTag} entities to their response DTOs. */
 @Component
-public class LocationCategoryMapper {
+public class LocationTypeMapper {
 
-    public CategoryResponse toResponse(LocationCategory category) {
-        return CategoryResponse.builder()
-                .code(category.getCode())
-                .name(en(category.getName()))
-                .nameKhmer(km(category.getName()))
-                .description(en(category.getDescription()))
-                .descriptionKhmer(km(category.getDescription()))
-                .markIcon(category.getMarkIcon())
-                .markIconUrl(category.getMarkIconUrl())
-                .displayOrder(category.getDisplayOrder())
-                .tags(toTagResponses(category.getTags()))
+    public LocationTypeResponse toResponse(LocationType locationType) {
+        return LocationTypeResponse.builder()
+                .code(locationType.getCode())
+                .name(en(locationType.getName()))
+                .nameKhmer(km(locationType.getName()))
+                .description(en(locationType.getDescription()))
+                .descriptionKhmer(km(locationType.getDescription()))
+                .markIcon(locationType.getMarkIcon())
+                .markIconUrl(locationType.getMarkIconUrl())
+                .displayOrder(locationType.getDisplayOrder())
+                .tags(toTagResponses(locationType.getTags()))
                 .build();
     }
 

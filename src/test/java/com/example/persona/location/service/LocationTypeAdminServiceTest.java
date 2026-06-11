@@ -8,14 +8,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.persona.enums.StatusType;
-import com.example.persona.location.dto.request.CategoryRequest.CategoryUpsertRequest;
-import com.example.persona.location.dto.request.CategoryRequest.TagUpsertRequest;
-import com.example.persona.location.exception.CategoryNotFoundException;
-import com.example.persona.location.mapper.LocationCategoryMapper;
-import com.example.persona.location.model.LocationCategory;
+import com.example.persona.location.dto.request.LocationTypeRequest.LocationTypeUpsertRequest;
+import com.example.persona.location.dto.request.LocationTypeRequest.TagUpsertRequest;
+import com.example.persona.location.exception.LocationTypeNotFoundException;
+import com.example.persona.location.mapper.LocationTypeMapper;
 import com.example.persona.location.model.LocationTag;
-import com.example.persona.location.repository.LocationCategoryRepository;
+import com.example.persona.location.model.LocationType;
 import com.example.persona.location.repository.LocationTagRepository;
+import com.example.persona.location.repository.LocationTypeRepository;
 import com.example.persona.model.MultilingualContent;
 import java.util.List;
 import java.util.Optional;
@@ -29,47 +29,47 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CategoryAdminService")
-class CategoryAdminServiceTest {
+@DisplayName("LocationTypeAdminService")
+class LocationTypeAdminServiceTest {
 
     @Mock
-    private LocationCategoryRepository categoryRepository;
+    private LocationTypeRepository locationTypeRepository;
 
     @Mock
     private LocationTagRepository tagRepository;
 
-    private CategoryAdminService service;
+    private LocationTypeAdminService service;
 
     @BeforeEach
     void setUp() {
-        service = new CategoryAdminService(categoryRepository, tagRepository, new LocationCategoryMapper());
+        service = new LocationTypeAdminService(locationTypeRepository, tagRepository, new LocationTypeMapper());
     }
 
-    private static CategoryUpsertRequest categoryRequest(List<String> tagCodes) {
-        return new CategoryUpsertRequest(
+    private static LocationTypeUpsertRequest upsertRequest(List<String> tagCodes) {
+        return new LocationTypeUpsertRequest(
                 "branch", "Bank Branch", "សាខា", "desc", "desc-km", "icon", "https://cdn/i.png", 1, tagCodes);
     }
 
     @Nested
-    @DisplayName("createCategory")
-    class CreateCategory {
+    @DisplayName("createLocationType")
+    class CreateLocationType {
 
         @Test
         @DisplayName("persists with actor audit, ACTIVE status, and resolved tags")
-        void createsCategory() {
-            when(categoryRepository.existsByCode("branch")).thenReturn(false);
+        void createsLocationType() {
+            when(locationTypeRepository.existsByCode("branch")).thenReturn(false);
             when(tagRepository.findByCode("wifi"))
                     .thenReturn(Optional.of(LocationTag.builder()
                             .code("wifi")
                             .name(MultilingualContent.builder().en("WiFi").build())
                             .build()));
-            when(categoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(locationTypeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.createCategory(categoryRequest(List.of("wifi")), "admin-1");
+            service.createLocationType(upsertRequest(List.of("wifi")), "admin-1");
 
-            ArgumentCaptor<LocationCategory> captor = ArgumentCaptor.forClass(LocationCategory.class);
-            verify(categoryRepository).save(captor.capture());
-            LocationCategory saved = captor.getValue();
+            ArgumentCaptor<LocationType> captor = ArgumentCaptor.forClass(LocationType.class);
+            verify(locationTypeRepository).save(captor.capture());
+            LocationType saved = captor.getValue();
             assertThat(saved.getCode()).isEqualTo("branch");
             assertThat(saved.getStatus()).isEqualTo(StatusType.ACTIVE);
             assertThat(saved.getCreatedBy()).isEqualTo("admin-1");
@@ -82,52 +82,52 @@ class CategoryAdminServiceTest {
         @Test
         @DisplayName("rejects a duplicate code")
         void rejectsDuplicate() {
-            when(categoryRepository.existsByCode("branch")).thenReturn(true);
-            assertThatThrownBy(() -> service.createCategory(categoryRequest(List.of()), "a"))
+            when(locationTypeRepository.existsByCode("branch")).thenReturn(true);
+            assertThatThrownBy(() -> service.createLocationType(upsertRequest(List.of()), "a"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("already exists");
-            verify(categoryRepository, never()).save(any());
+            verify(locationTypeRepository, never()).save(any());
         }
 
         @Test
         @DisplayName("fails when a referenced tag does not exist")
         void failsOnUnknownTag() {
-            when(categoryRepository.existsByCode("branch")).thenReturn(false);
+            when(locationTypeRepository.existsByCode("branch")).thenReturn(false);
             when(tagRepository.findByCode("ghost")).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.createCategory(categoryRequest(List.of("ghost")), "a"))
-                    .isInstanceOf(CategoryNotFoundException.class)
+            assertThatThrownBy(() -> service.createLocationType(upsertRequest(List.of("ghost")), "a"))
+                    .isInstanceOf(LocationTypeNotFoundException.class)
                     .hasMessageContaining("Tag not found: ghost");
-            verify(categoryRepository, never()).save(any());
+            verify(locationTypeRepository, never()).save(any());
         }
     }
 
     @Nested
-    @DisplayName("updateCategory / deleteCategory")
+    @DisplayName("updateLocationType / deleteLocationType")
     class UpdateDelete {
 
         @Test
-        @DisplayName("update throws when category is missing")
+        @DisplayName("update throws when location type is missing")
         void updateMissing() {
-            when(categoryRepository.findByCode("nope")).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.updateCategory("nope", categoryRequest(List.of()), "a"))
-                    .isInstanceOf(CategoryNotFoundException.class);
+            when(locationTypeRepository.findByCode("nope")).thenReturn(Optional.empty());
+            assertThatThrownBy(() -> service.updateLocationType("nope", upsertRequest(List.of()), "a"))
+                    .isInstanceOf(LocationTypeNotFoundException.class);
         }
 
         @Test
         @DisplayName("delete soft-deletes (status DELETED) and records the actor")
         void softDeletes() {
-            LocationCategory existing = LocationCategory.builder()
+            LocationType existing = LocationType.builder()
                     .code("branch")
                     .status(StatusType.ACTIVE)
                     .build();
-            when(categoryRepository.findByCode("branch")).thenReturn(Optional.of(existing));
-            when(categoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(locationTypeRepository.findByCode("branch")).thenReturn(Optional.of(existing));
+            when(locationTypeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.deleteCategory("branch", "admin-9");
+            service.deleteLocationType("branch", "admin-9");
 
             assertThat(existing.getStatus()).isEqualTo(StatusType.DELETED);
             assertThat(existing.getModifiedBy()).isEqualTo("admin-9");
-            verify(categoryRepository).save(existing);
+            verify(locationTypeRepository).save(existing);
         }
     }
 
@@ -148,7 +148,8 @@ class CategoryAdminServiceTest {
         @DisplayName("deleteTag throws when missing")
         void deleteTagMissing() {
             when(tagRepository.findByCode("nope")).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> service.deleteTag("nope", "a")).isInstanceOf(CategoryNotFoundException.class);
+            assertThatThrownBy(() -> service.deleteTag("nope", "a"))
+                    .isInstanceOf(LocationTypeNotFoundException.class);
             verify(tagRepository, never()).delete(any());
         }
 

@@ -26,30 +26,29 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * A location category (FR-03). Bridges the existing {@code LocationType} codes
- * (branch / atm_crm / master_agent / agent) to a managed, multilingual,
- * icon-bearing entity that the app and website can render in filters.
+ * A location type (FR-03). Admin-managed, multilingual, icon-bearing entity
+ * that the app and website render in locator filters.
  *
- * <p>Locations reference a category by its {@link #code} (loose coupling),
- * matching how {@code Location.type} already stores a code string.
+ * <p>Locations reference a type by its {@link #code} (loose coupling),
+ * matching how {@code Location.type} stores a code string.
  */
 @Entity
 @Table(
-        name = "dgtl_location_category",
-        uniqueConstraints = {@UniqueConstraint(name = "uk_location_category_code", columnNames = "code")})
+        name = "dgtl_location_type",
+        uniqueConstraints = {@UniqueConstraint(name = "uk_location_type_code", columnNames = "code")})
 @Getter
 @Setter
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LocationCategory extends BaseModel {
+public class LocationType extends BaseModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
-    /** Business key — aligns with {@code LocationType} codes (e.g. {@code branch}). */
+    /** Business key — e.g. {@code branch}, {@code atm_crm}, {@code agent}. */
     @Column(name = "code", length = 100, nullable = false)
     private String code;
 
@@ -77,14 +76,14 @@ public class LocationCategory extends BaseModel {
     @Column(name = "mark_icon_url", length = 1000)
     private String markIconUrl;
 
-    /** Controls ordering in the category list. */
+    /** Controls ordering in the type list. */
     @Column(name = "display_order")
     private int displayOrder;
 
     @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "dgtl_location_category_tag",
+            name = "dgtl_location_type_tag",
             joinColumns = @JoinColumn(name = "category_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<LocationTag> tags = new LinkedHashSet<>();

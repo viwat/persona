@@ -1,11 +1,11 @@
 package com.example.persona.location.controller;
 
-import com.example.persona.location.dto.request.CategoryRequest.CategoryUpsertRequest;
-import com.example.persona.location.dto.request.CategoryRequest.TagUpsertRequest;
+import com.example.persona.location.dto.request.LocationTypeRequest.LocationTypeUpsertRequest;
+import com.example.persona.location.dto.request.LocationTypeRequest.TagUpsertRequest;
 import com.example.persona.location.dto.response.ApiResponse;
-import com.example.persona.location.dto.response.CategoryResponse;
+import com.example.persona.location.dto.response.LocationTypeResponse;
 import com.example.persona.location.dto.response.TagResponse;
-import com.example.persona.location.service.CategoryAdminService;
+import com.example.persona.location.service.LocationTypeAdminService;
 import io.micrometer.core.annotation.Timed;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,46 +23,48 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Admin CRUD for location categories and tags (FR-03 Website Locator Management). */
+/** Admin CRUD for location types and tags (FR-03 Website Locator Management). */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
-@Tag(name = "Location - Admin", description = "Manage location categories and tags (admin only)")
-public class CategoryAdminController {
+@Tag(name = "Location - Admin", description = "Manage location types and tags (admin only)")
+public class LocationTypeAdminController {
 
-    private final CategoryAdminService categoryAdminService;
+    private final LocationTypeAdminService locationTypeAdminService;
 
-    // ── Categories ─────────────────────────────────────────────────────────────
+    // ── Location Types ──────────────────────────────────────────────────────────
 
     @PostMapping("/categories")
-    @Operation(summary = "Create a category")
+    @Operation(summary = "Create a location type")
     @Timed(value = "http.admin.category.create")
-    public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
-            @RequestBody @Valid CategoryUpsertRequest request,
+    public ResponseEntity<ApiResponse<LocationTypeResponse>> createLocationType(
+            @RequestBody @Valid LocationTypeUpsertRequest request,
             @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(categoryAdminService.createCategory(request, actor), "Category created"));
+                .body(ApiResponse.ok(locationTypeAdminService.createLocationType(request, actor), "Location type created"));
     }
 
     @PutMapping("/categories/{code}")
-    @Operation(summary = "Update a category")
+    @Operation(summary = "Update a location type")
     @Timed(value = "http.admin.category.update")
-    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
+    public ResponseEntity<ApiResponse<LocationTypeResponse>> updateLocationType(
             @PathVariable String code,
-            @RequestBody @Valid CategoryUpsertRequest request,
+            @RequestBody @Valid LocationTypeUpsertRequest request,
             @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
         return ResponseEntity.ok(
-                ApiResponse.ok(categoryAdminService.updateCategory(code, request, actor), "Category updated"));
+                ApiResponse.ok(
+                        locationTypeAdminService.updateLocationType(code, request, actor), "Location type updated"));
     }
 
     @DeleteMapping("/categories/{code}")
-    @Operation(summary = "Delete a category")
+    @Operation(summary = "Delete a location type")
     @Timed(value = "http.admin.category.delete")
-    public ResponseEntity<ApiResponse<Void>> deleteCategory(
-            @PathVariable String code, @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
-        categoryAdminService.deleteCategory(code, actor);
-        return ResponseEntity.ok(ApiResponse.ok(null, "Category deleted"));
+    public ResponseEntity<ApiResponse<Void>> deleteLocationType(
+            @PathVariable String code,
+            @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
+        locationTypeAdminService.deleteLocationType(code, actor);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Location type deleted"));
     }
 
     // ── Tags ──────────────────────────────────────────────────────────────────────
@@ -74,7 +76,7 @@ public class CategoryAdminController {
             @RequestBody @Valid TagUpsertRequest request,
             @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(categoryAdminService.createTag(request, actor), "Tag created"));
+                .body(ApiResponse.ok(locationTypeAdminService.createTag(request, actor), "Tag created"));
     }
 
     @PutMapping("/tags/{code}")
@@ -84,15 +86,17 @@ public class CategoryAdminController {
             @PathVariable String code,
             @RequestBody @Valid TagUpsertRequest request,
             @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
-        return ResponseEntity.ok(ApiResponse.ok(categoryAdminService.updateTag(code, request, actor), "Tag updated"));
+        return ResponseEntity.ok(
+                ApiResponse.ok(locationTypeAdminService.updateTag(code, request, actor), "Tag updated"));
     }
 
     @DeleteMapping("/tags/{code}")
     @Operation(summary = "Delete a tag")
     @Timed(value = "http.admin.tag.delete")
     public ResponseEntity<ApiResponse<Void>> deleteTag(
-            @PathVariable String code, @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
-        categoryAdminService.deleteTag(code, actor);
+            @PathVariable String code,
+            @RequestHeader(value = "X-Actor", defaultValue = "system") String actor) {
+        locationTypeAdminService.deleteTag(code, actor);
         return ResponseEntity.ok(ApiResponse.ok(null, "Tag deleted"));
     }
 }
